@@ -1,0 +1,11 @@
+all:
+	python3 setup.py build_ext -i
+
+check:
+	pytest test.py -sv
+
+sdist:
+	python setup.py sdist
+
+clean:
+	-rm -r build pyIMRPhenomD.c pyIMRPhenomD.so

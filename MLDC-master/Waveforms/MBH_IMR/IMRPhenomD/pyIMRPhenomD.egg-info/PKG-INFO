@@ -1,0 +1,26 @@
+Metadata-Version: 2.1
+Name: pyIMRPhenomD
+Version: 0.1
+Summary: IMRPhenomD inspiral-merger-ringdown GW waveform model
+Home-page: 
+Author: Michael Pürrer, Sylvain Marsat
+Author-email: Michael.Puerrer@aei.mpg.de
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Programming Language :: Cython
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Topic :: Scientific/Engineering
+Classifier: Operating System :: Unix
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Operating System :: MacOS :: MacOS X
+License-File: LICENSE
+
+
+    Standalone IMRPhenomD inspiral-merger-ringdown GW waveform model
+    for binary black hole coalescences.
+
+

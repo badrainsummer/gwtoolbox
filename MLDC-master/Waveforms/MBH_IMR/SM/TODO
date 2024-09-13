@@ -1,0 +1,12 @@
+* Clarify Fourier convention used
+  probably better to stick with LAL convention everywhere, then things should be rewritten as it is now h2-2 that has power at positive frequencies
+  - at the moment the comparison PhenomD Amp/Phase vs hplus/hcross works after conjugation of hptilde, hctilde (which amounts to f -> -f)
+* Check how fRef is handled
+* Long-term: write structures for lists of modes, to extend beyond 22-mode only
+* Cythonize response code
+  - build custom structures instead of dictionaries ?
+  - cythonize code - includes a few linear algebra operations (3d scalar products and matrix multiplication)
+  - compare performance to pure-C response with precomputed linear algebra
+* Add safety checks - much of the resampling procedure can go wrong if one asks for very short waveforms in a range where tf is a bad approximation
+* TD response is UNTESTED yet 
+* Add comparison of FDresponse vs FFT(TDresponse(IFFT))

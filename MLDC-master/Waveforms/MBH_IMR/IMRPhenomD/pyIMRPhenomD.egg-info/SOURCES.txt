@@ -1,0 +1,11 @@
+IMRPhenomD.c
+IMRPhenomD_internals.c
+LICENSE
+pyFDresponse.py
+pyIMRPhenomD.c
+setup.py
+pyIMRPhenomD.egg-info/PKG-INFO
+pyIMRPhenomD.egg-info/SOURCES.txt
+pyIMRPhenomD.egg-info/dependency_links.txt
+pyIMRPhenomD.egg-info/requires.txt
+pyIMRPhenomD.egg-info/top_level.txt

@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/svn/!svn/ver/1087/lisaXML/io-python/lisaxml2
+END
+lisaxml2.py
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svn/!svn/ver/1087/lisaXML/io-python/lisaxml2/lisaxml2.py
+END
+__init__.py
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/!svn/ver/592/lisaXML/io-python/lisaxml2/__init__.py
+END
+convertunit.py
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/!svn/ver/1005/lisaXML/io-python/lisaxml2/convertunit.py
+END
+xmlutils.py
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/!svn/ver/526/lisaXML/io-python/lisaxml2/xmlutils.py
+END
+xmltraits.py
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svn/!svn/ver/526/lisaXML/io-python/lisaxml2/xmltraits.py
+END

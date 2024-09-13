@@ -1,0 +1,10 @@
+FastBinary.cpp
+FastBinary.i
+FastBinary.py
+arrays.c
+setup.cfg
+setup.py
+FastBinary.egg-info/PKG-INFO
+FastBinary.egg-info/SOURCES.txt
+FastBinary.egg-info/dependency_links.txt
+FastBinary.egg-info/top_level.txt
