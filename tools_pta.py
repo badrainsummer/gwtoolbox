@@ -1,12 +1,18 @@
 from gwtoolbox.cosmology import Cosmology
 from gwtoolbox.functions_pta import *
 from gwtoolbox.pta_pulsars import *
+import numpy as np
 def set_cosmology(cosmoID=None, H0=None, Om0=None,Tcmb=None):
     cosmos_class = Cosmology()
     cosmos = cosmos_class.set_cosmo(cosmoID,H0,Om0,Tcmb)
     return cosmos
 class PTA_individual:
     def __init__(self, obs_plan="A", delta_t=1, T=10, Ndot=10, which_PTA='IPTA'):
+        self.obs_plan = obs_plan
+        self.delta_t = delta_t
+        self.T = T
+        self.Ndot = Ndot
+        self.which_PTA = which_PTA
         self.PTA=newPulsars(meal=obs_plan, deltat=int(delta_t), T=int(T), Ndot=int(Ndot), which=which_PTA)
         return None 
     def SNR(self, ra,dec,hs,frequency,phi, iota):
@@ -16,12 +22,18 @@ class PTA_individual:
             frequency in unit of yr^-1, it's the frequency of the source
             hs is demensionless, it's the dimensionless 
         """
-        if not hs>0:
-            raise ValueError("hs should >0")
+        if isinstance(hs, (list, np.ndarray)):
+            if not all(h > 0 for h in hs):
+                raise ValueError("All values of hs must be greater than 0.")
+        elif hs <= 0:
+            raise ValueError("hs must be greater than 0.")
+        # if not hs>0:
+            # raise ValueError("hs should >0")
         #if not frequency:
         #    raise ValueError("frequency should >0")
         #res_ampt=resi_ampt(hs, frequency/365., ra, dec) # res_ampt wants frequency in days^-1
-        result=SNR_indi_PTA(self.PTA, frequency, hs, ra, dec, phi, iota) 
+        result = SNR_hasasia(self, frequency, hs, ra, dec, phi, iota)
+        # result=SNR_indi_PTA(self.PTA, frequency, hs, ra, dec, phi, iota) 
         return result
     
     def sens_curve_directional(self,ra, dec, psi, iota, freq, rhostar):
