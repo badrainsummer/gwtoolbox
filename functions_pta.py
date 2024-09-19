@@ -4,6 +4,13 @@ from astropy import units as u
 from astropy.coordinates import Angle
 from astropy.coordinates import SkyCoord
 from .functions_earth import chirp_mass
+import hasasia.skymap as hsky
+import hasasia.sensitivity as hsen
+import pickle
+import os
+import glob
+import re
+
 def GetOne(samples, sty='num'):
     # draw one sample from the distribution underlying the given sample 
     two=np.random.choice(samples,2)
@@ -214,3 +221,158 @@ def strain_amplitude(m1, m2, Dl, fz):
     Mpc=3.086e24 # cm 
     hs=4.*np.sqrt(0.4)*(M_chirp*GMsolar_c3)**(5/3)*c/(Dl*Mpc)*(np.pi*fz)**(2./3.)    
     return hs 
+
+def ra2phi(ra):
+    if isinstance(ra, (list, np.ndarray)):
+        return [int(r.split(':')[0]) * 15 + int(r.split(':')[1]) / 60 * 15 + float(r.split(':')[2]) / 3600 * 15 for r in ra]
+    else:
+        d = ra.split(':')
+        return int(d[0]) * 15 + int(d[1]) / 60 * 15 + float(d[2]) / 3600 * 15
+
+def dec2theta(dec):
+    if isinstance(dec, (list, np.ndarray)):
+        return [int(d.split(':')[0]) + int(d.split(':')[1]) / 60 + float(d.split(':')[2]) / 3600 for d in dec]
+    else:
+        d = dec.split(':')
+        return int(d[0]) + int(d[1]) / 60 + float(d[2]) / 3600
+
+def expand_to_list(param, length):
+    if isinstance(param, (list, np.ndarray)):
+        return np.asarray(param).flatten().tolist()  # 扁平化数组并转换为列表
+    else:
+        return [param] * length  # 扩展为与长度相同的列表
+
+def check_lengths(*args):
+    lengths = [len(arg) if isinstance(arg, (list, np.ndarray)) else 1 for arg in args]
+    if len(set(lengths)) != 1:  # 检查长度是否相同
+        raise ValueError("All input lists must have the same length.")
+
+def SNR_hasasia(PTA_i, frequency, hs, RA_gw, DEC_gw, psi, iota):
+    # 处理RA和DEC
+    phi_gw = ra2phi(RA_gw)
+    theta_gw = dec2theta(DEC_gw)
+
+    # 获取最长参数的长度
+    length = 1
+    if isinstance(frequency, (list, np.ndarray)):
+        length = len(frequency)
+    elif isinstance(hs, (list, np.ndarray)):
+        length = len(hs)
+    elif isinstance(psi, (list, np.ndarray)):
+        length = len(psi)
+    elif isinstance(iota, (list, np.ndarray)):
+        length = len(iota)
+    
+    # 扩展所有参数为列表
+    frequency = expand_to_list(frequency, length)
+    hs = expand_to_list(hs, length)
+    phi_gw = expand_to_list(phi_gw, length)
+    theta_gw = expand_to_list(theta_gw, length)
+    psi = expand_to_list(psi, length)
+    iota = expand_to_list(iota, length)
+
+    # 检查所有列表的长度是否相同
+    check_lengths(frequency, hs, phi_gw, theta_gw, psi, iota)
+
+    snr_list = []
+    for f, h, phi, theta, p, i in zip(frequency, hs, phi_gw, theta_gw, psi, iota):
+        snr_list.append(SNR_hasasia_calculation(PTA_i, f, h, phi, theta, p, i))
+        
+    return snr_list
+
+def SNR_hasasia_calculation(PTA_i, frequency, hs, phi, theta, psi, iota):
+    if PTA_i.which_PTA == 'IPTA':
+        return SNR_hasasia_IPTA(PTA_i, frequency, hs, phi, theta, psi, iota)
+    elif PTA_i.which_PTA in ['EPTA', 'PPTA', 'NanoGrav']:
+        return SNR_hasasia_elsePTA(PTA_i, frequency, hs, phi, theta, psi, iota)
+    else:
+        raise ValueError("{} does not exist or is not included".format(PTA_i.which_PTA))
+
+def SNR_hasasia_IPTA(PTA_i, frequency, hs, phi, theta, psi, iota):
+    specses = {}
+    path_abs=os.path.dirname(os.path.abspath(__file__))
+    for pta_type in ['EPTA','PPTA','NanoGrav']:
+        path_specs = 'specs/'+pta_type+'/'
+        specsdir = os.path.join(path_abs,path_specs)
+        specses.update(open_pkl_asdir(specsdir))
+    specs_p = []
+    specs_n = []
+    specs_e = []
+    pattern = r'([BJ]\d{4}[+-]\d{2,4}[a-z]{0,3})'
+    name_list = []
+    for sp,pta in specses.items():
+        [name] = re.findall(pattern, sp)
+        if pta == 'PPTA':
+            if not name in name_list:
+                name_list.append(name)
+                with open(sp, 'rb') as f:
+                    specs_p.append(pickle.load(f))
+        elif pta == 'NanoGrav':
+            if not name in name_list:
+                name_list.append(name)
+                with open(sp, 'rb') as f:
+                    specs_n.append(pickle.load(f))
+        elif pta == 'EPTA':
+            if not name in name_list:
+                name_list.append(name)
+                with open(sp, 'rb') as f:
+                    specs_e.append(pickle.load(f))
+    S_eff_inv = 0
+    for specs in [specs_p,specs_n,specs_e]:
+        Tspan = hsen.get_Tspan(specs)
+        fyr = 1/(365.25*24*3600)
+        freqs = np.logspace(np.log10(1/(5*Tspan)),np.log10(2e-7),600)
+        SM = hsky.SkySensitivity(specs, [theta], [phi])
+        index = np.abs(freqs - 2*frequency).argmin()
+        S_eff_inv = hasasia_S_eff(SM, psi, iota, PTA_i.obs_plan, PTA_i.T, PTA_i.Ndot)[index]+S_eff_inv
+    [SNR] = hs * np.sqrt(S_eff_inv)
+    return SNR
+
+def SNR_hasasia_elsePTA(PTA_i, frequency, hs, phi, theta, psi, iota):
+    path_abs=os.path.dirname(os.path.abspath(__file__))
+    path_specs = 'specs/'+PTA_i.which_PTA+'/'
+    specsdir = os.path.join(path_abs,path_specs)
+    specs = open_pkl(specsdir)
+    Tspan = hsen.get_Tspan(specs)
+    fyr = 1/(365.25*24*3600)
+    freqs = np.logspace(np.log10(1/(5*Tspan)),np.log10(2e-7),600)
+    SM = hsky.SkySensitivity(specs, [theta], [phi])
+    index = np.abs(freqs - 2*frequency).argmin()
+    S_eff_inv = hasasia_S_eff(SM, psi, iota, PTA_i.obs_plan, PTA_i.T, PTA_i.Ndot)[index]
+    [SNR] = hs * np.sqrt(S_eff_inv)
+    return SNR
+    
+def open_pkl(specsdir):
+    specses = sorted(glob.glob(specsdir+'*.pkl'))
+    specs = []
+    for sp in specses:
+        with open(sp, 'rb') as f:
+            specs.append(pickle.load(f))
+    return specs
+
+def open_pkl_asdir(specsdir):
+    pta_type = specsdir.split('/')[-2]
+    specses = {}
+    specs_list = sorted(glob.glob(specsdir+'*.pkl'))
+    for specs_dir in specs_list:
+        specses[specs_dir] = pta_type
+    return specses
+
+def hasasia_S_eff(SM, psi, iota, obs_plan="A", T=10, Ndot=10):
+    if obs_plan == "A":
+        S_eff_inv_1 = 6./5 * np.sum(SM.S_SkyI_full(iota, psi), axis=1)*SM.Tspan
+        S_eff_inv_2 = 0
+    elif obs_plan == "B":
+        T_a = T*u.year
+        S_eff_inv_1 = 6./5 * np.sum(SM.S_SkyI_full(iota, psi)/SM.T_I[:,np.newaxis]*(SM.T_I+T_a.to(u.s).value)[:,np.newaxis], axis=1)*SM.Tspan
+        S_eff_inv_2 = 0
+    elif obs_plan == "C":  
+        T_a = T*u.year
+        N_y = Ndot/u.year
+        t_I = SM.T_I / SM.Tspan
+        S_SkyI = SM.S_SkyI_full(iota, psi)
+        S_SkyI = S_SkyI/t_I[:,np.newaxis]
+        S_SkyI_mean = np.mean(S_SkyI,axis=1)
+        S_eff_inv_1 = 6./5 * np.sum(SM.S_SkyI_full(iota, psi)/SM.T_I[:,np.newaxis]*(SM.T_I+T_a.to(u.s).value)[:,np.newaxis], axis=1)*SM.Tspan
+        S_eff_inv_2 = 6./5 * S_SkyI_mean*((N_y*T_a**2/2).to(u.s).value)
+    return S_eff_inv_1+S_eff_inv_2
