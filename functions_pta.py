@@ -323,7 +323,7 @@ def SNR_hasasia_IPTA(PTA_i, frequency, hs, phi, theta, psi, iota):
         fyr = 1/(365.25*24*3600)
         freqs = np.logspace(np.log10(1/(5*Tspan)),np.log10(2e-7),600)
         SM = hsky.SkySensitivity(specs, [theta], [phi])
-        index = np.abs(freqs - 2*frequency).argmin()
+        index = np.abs(freqs - frequency).argmin()
         S_eff_inv = hasasia_S_eff(SM, psi, iota, PTA_i.obs_plan, PTA_i.T, PTA_i.Ndot)[index]+S_eff_inv
     [SNR] = hs * np.sqrt(S_eff_inv)
     return SNR
@@ -337,7 +337,7 @@ def SNR_hasasia_elsePTA(PTA_i, frequency, hs, phi, theta, psi, iota):
     fyr = 1/(365.25*24*3600)
     freqs = np.logspace(np.log10(1/(5*Tspan)),np.log10(2e-7),600)
     SM = hsky.SkySensitivity(specs, [theta], [phi])
-    index = np.abs(freqs - 2*frequency).argmin()
+    index = np.abs(freqs - frequency).argmin()
     S_eff_inv = hasasia_S_eff(SM, psi, iota, PTA_i.obs_plan, PTA_i.T, PTA_i.Ndot)[index]
     [SNR] = hs * np.sqrt(S_eff_inv)
     return SNR
