@@ -15,7 +15,7 @@ class PTA_individual:
         self.which_PTA = which_PTA
         self.PTA=newPulsars(meal=obs_plan, deltat=int(delta_t), T=int(T), Ndot=int(Ndot), which=which_PTA)
         return None 
-    def SNR(self, ra,dec,hs,frequency,phi, iota):
+    def SNR(self, ra,dec,hs,frequency,phi=30, iota=30):
         """
             ra is in format of hms (str), single, it's the RA of the GW source
             dec in format of dms (str) 
