@@ -246,6 +246,14 @@ def check_lengths(*args):
     lengths = [len(arg) if isinstance(arg, (list, np.ndarray)) else 1 for arg in args]
     if len(set(lengths)) != 1:  # 检查长度是否相同
         raise ValueError("All input lists must have the same length.")
+    
+def fill_loc(loc):
+    if len(loc.split(':'))==1:
+        loc = loc+':0:0'
+    elif len(loc.split(':'))==2:
+        loc = loc+':0'
+    elif len(loc.split(':'))>4:
+        raise ValueError("Location coordinates can have at most two ':'.")
 
 def SNR_hasasia(PTA_i, frequency, hs, RA_gw, DEC_gw, psi, iota):
     # 处理RA和DEC
