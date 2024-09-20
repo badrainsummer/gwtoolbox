@@ -33,6 +33,8 @@ class PTA_individual:
         #    raise ValueError("frequency should >0")
         #res_ampt=resi_ampt(hs, frequency/365., ra, dec) # res_ampt wants frequency in days^-1
         result = SNR_hasasia(self, frequency, hs, ra, dec, phi, iota)
+        if len(result) == 1:
+            [result] = result
         # result=SNR_indi_PTA(self.PTA, frequency, hs, ra, dec, phi, iota) 
         return result
     
