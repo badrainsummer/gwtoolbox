@@ -224,15 +224,19 @@ def strain_amplitude(m1, m2, Dl, fz):
 
 def ra2phi(ra):
     if isinstance(ra, (list, np.ndarray)):
+        ra = [fill_loc(r) for r in ra]
         return [int(r.split(':')[0]) * 15 + int(r.split(':')[1]) / 60 * 15 + float(r.split(':')[2]) / 3600 * 15 for r in ra]
     else:
+        ra = fill_loc(ra)
         d = ra.split(':')
         return int(d[0]) * 15 + int(d[1]) / 60 * 15 + float(d[2]) / 3600 * 15
 
 def dec2theta(dec):
     if isinstance(dec, (list, np.ndarray)):
+        dec = [fill_loc(r) for r in dec]
         return [int(d.split(':')[0]) + int(d.split(':')[1]) / 60 + float(d.split(':')[2]) / 3600 for d in dec]
     else:
+        dec = fill_loc(dec)
         d = dec.split(':')
         return int(d[0]) + int(d[1]) / 60 + float(d[2]) / 3600
 
@@ -254,11 +258,10 @@ def fill_loc(loc):
         loc = loc+':0'
     elif len(loc.split(':'))>3:
         raise ValueError("Location coordinates can have at most two ':'.")
+    return loc
 
 def SNR_hasasia(PTA_i, frequency, hs, RA_gw, DEC_gw, psi, iota):
     # 处理RA和DEC
-    fill_loc(RA_gw)
-    fill_loc(DEC_gw)
     phi_gw = ra2phi(RA_gw)
     theta_gw = dec2theta(DEC_gw)
 
@@ -272,6 +275,10 @@ def SNR_hasasia(PTA_i, frequency, hs, RA_gw, DEC_gw, psi, iota):
         length = len(psi)
     elif isinstance(iota, (list, np.ndarray)):
         length = len(iota)
+    elif isinstance(RA_gw, (list, np.ndarray)):
+        length = len(RA_gw)
+    elif isinstance(DEC_gw, (list, np.ndarray)):
+        length = len(DEC_gw)
     
     # 扩展所有参数为列表
     frequency = expand_to_list(frequency, length)
