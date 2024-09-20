@@ -257,6 +257,8 @@ def fill_loc(loc):
 
 def SNR_hasasia(PTA_i, frequency, hs, RA_gw, DEC_gw, psi, iota):
     # 处理RA和DEC
+    fill_loc(RA_gw)
+    fill_loc(DEC_gw)
     phi_gw = ra2phi(RA_gw)
     theta_gw = dec2theta(DEC_gw)
 
