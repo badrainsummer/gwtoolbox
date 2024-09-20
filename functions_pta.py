@@ -252,7 +252,7 @@ def fill_loc(loc):
         loc = loc+':0:0'
     elif len(loc.split(':'))==2:
         loc = loc+':0'
-    elif len(loc.split(':'))>4:
+    elif len(loc.split(':'))>3:
         raise ValueError("Location coordinates can have at most two ':'.")
 
 def SNR_hasasia(PTA_i, frequency, hs, RA_gw, DEC_gw, psi, iota):
