@@ -58,6 +58,7 @@ class PTA_individual:
             raise ValueError("rhostar should be larger than 0")
         hs_fidu=1e-15
         snr_fidu=self.SNR(ra=ra, dec=dec, hs=hs_fidu, frequency=freq, phi=psi, iota=iota)
+        snr_fidu = np.array(snr_fidu)
         hs_sen=np.where(snr_fidu==0,1e-8, np.sqrt(rhostar/snr_fidu)*hs_fidu)
         #if snr_fidu==0:
         #    hs_sen=1e-8
