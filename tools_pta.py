@@ -53,12 +53,26 @@ class PTA_individual:
         # result=SNR_indi_PTA(self.PTA, frequency, hs, ra, dec, phi, iota) 
         return result
     
+    def SNR_old(self, ra,dec,hs,frequency,phi, iota):
+        """
+            ra is in format of hms (str), single, it's the RA of the GW source
+            dec in format of dms (str) 
+            frequency in unit of yr^-1, it's the frequency of the source
+            hs is demensionless, it's the dimensionless 
+        """
+        if not hs>0:
+            raise ValueError("hs should >0")
+        #if not frequency:
+        #    raise ValueError("frequency should >0")
+        #res_ampt=resi_ampt(hs, frequency/365., ra, dec) # res_ampt wants frequency in days^-1
+        result=SNR_indi_PTA(self.PTA, frequency, hs, ra, dec, phi, iota) 
+        return result
+    
     def sens_curve_directional(self,ra, dec, psi, iota, freq, rhostar):
         if not rhostar>0:
             raise ValueError("rhostar should be larger than 0")
         hs_fidu=1e-15
-        snr_fidu=self.SNR(ra=ra, dec=dec, hs=hs_fidu, frequency=freq, phi=psi, iota=iota)
-        snr_fidu = np.array(snr_fidu)
+        snr_fidu=self.SNR_old(ra=ra, dec=dec, hs=hs_fidu, frequency=freq, phi=psi, iota=iota)
         hs_sen=np.where(snr_fidu==0,1e-8, np.sqrt(rhostar/snr_fidu)*hs_fidu)
         #if snr_fidu==0:
         #    hs_sen=1e-8
