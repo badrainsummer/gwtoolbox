@@ -290,12 +290,8 @@ def SNR_hasasia(PTA_i, frequency, hs, RA_gw, DEC_gw, psi, iota):
 
     # 检查所有列表的长度是否相同
     check_lengths(frequency, hs, phi_gw, theta_gw, psi, iota)
-
-    snr_list = []
-    for f, h, phi, theta, p, i in zip(frequency, hs, phi_gw, theta_gw, psi, iota):
-        snr_list.append(SNR_hasasia_calculation(PTA_i, f, h, phi, theta, p, i))
         
-    return snr_list
+    return SNR_hasasia_calculation(PTA_i, frequency, hs, phi_gw, theta_gw, psi, iota)
 
 def SNR_hasasia_calculation(PTA_i, frequency, hs, phi, theta, psi, iota):
     if PTA_i.which_PTA == 'IPTA':
@@ -334,16 +330,19 @@ def SNR_hasasia_IPTA(PTA_i, frequency, hs, phi, theta, psi, iota):
                 name_list.append(name)
                 with open(sp, 'rb') as f:
                     specs_e.append(pickle.load(f))
-    S_eff_inv = 0
-    for specs in [specs_p,specs_n,specs_e]:
-        Tspan = hsen.get_Tspan(specs)
-        fyr = 1/(365.25*24*3600)
-        freqs = np.logspace(np.log10(1/(5*Tspan)),np.log10(2e-7),600)
-        SM = hsky.SkySensitivity(specs, [theta], [phi])
-        index = np.abs(freqs - frequency).argmin()
-        S_eff_inv = hasasia_S_eff(SM, psi, iota, PTA_i.obs_plan, PTA_i.T, PTA_i.Ndot)[index]+S_eff_inv
-    [SNR] = hs * np.sqrt(S_eff_inv)
-    return SNR
+    snr_list = []
+    for f, h, ph, the, p, i in zip(frequency, hs, phi, theta, psi, iota):
+        S_eff_inv = 0
+        for specs in [specs_p,specs_n,specs_e]:
+            Tspan = hsen.get_Tspan(specs)
+            fyr = 1/(365.25*24*3600)
+            freqs = np.logspace(np.log10(1/(5*Tspan)),np.log10(2e-7),600)
+            SM = hsky.SkySensitivity(specs, [the], [ph])
+            index = np.abs(freqs - f).argmin()
+            S_eff_inv = hasasia_S_eff(SM, p, i, PTA_i.obs_plan, PTA_i.T, PTA_i.Ndot)[index]+S_eff_inv
+        [SNR] = h * np.sqrt(S_eff_inv)
+        snr_list.append(SNR)
+    return snr_list
 
 def SNR_hasasia_elsePTA(PTA_i, frequency, hs, phi, theta, psi, iota):
     path_abs=os.path.dirname(os.path.abspath(__file__))
@@ -353,11 +352,14 @@ def SNR_hasasia_elsePTA(PTA_i, frequency, hs, phi, theta, psi, iota):
     Tspan = hsen.get_Tspan(specs)
     fyr = 1/(365.25*24*3600)
     freqs = np.logspace(np.log10(1/(5*Tspan)),np.log10(2e-7),600)
-    SM = hsky.SkySensitivity(specs, [theta], [phi])
-    index = np.abs(freqs - frequency).argmin()
-    S_eff_inv = hasasia_S_eff(SM, psi, iota, PTA_i.obs_plan, PTA_i.T, PTA_i.Ndot)[index]
-    [SNR] = hs * np.sqrt(S_eff_inv)
-    return SNR
+    snr_list = []
+    for f, h, ph, the, p, i in zip(frequency, hs, phi, theta, psi, iota):
+        SM = hsky.SkySensitivity(specs, [the], [ph])
+        index = np.abs(freqs - f).argmin()
+        S_eff_inv = hasasia_S_eff(SM, p, i, PTA_i.obs_plan, PTA_i.T, PTA_i.Ndot)[index]
+        [SNR] = h * np.sqrt(S_eff_inv)
+        snr_list.append(SNR)
+    return snr_list
     
 def open_pkl(specsdir):
     specses = sorted(glob.glob(specsdir+'*.pkl'))

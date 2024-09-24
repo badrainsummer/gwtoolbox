@@ -16,6 +16,8 @@ class PTA_individual:
         self.PTA=newPulsars(meal=obs_plan, deltat=int(delta_t), T=int(T), Ndot=int(Ndot), which=which_PTA)
         return None 
     def SNR(self, ra,dec,hs,frequency,phi=30, iota=30):
+        seconds_per_year = 365.25 * 24 * 3600
+        frequency = frequency/seconds_per_year
         """
             ra is in format of hms (str), single, it's the RA of the GW source
             dec in format of dms (str) 
@@ -27,21 +29,21 @@ class PTA_individual:
                 raise ValueError("All values of hs must be greater than 0.")
         elif hs <= 0:
             raise ValueError("hs must be greater than 0.")
-        frequency_array = np.asarray(frequency)
-        if np.any(frequency_array > 2e-7):
-            raise ValueError("frequency must be smaller than 2e-7.")
+        # frequency_array = np.asarray(frequency)
+        # if np.any(frequency_array > 2e-7):
+        #     raise ValueError("frequency must be smaller than 2e-7.")
         
-        if self.which_PTA == 'EPTA':
-            if np.any(frequency_array < 2.4935e-10):
-                raise ValueError("For EPTA, frequency must be greater than 2.4935e-10 Hz.")
+        # if self.which_PTA == 'EPTA':
+        #     if np.any(frequency_array < 2.4935e-10):
+        #         raise ValueError("For EPTA, frequency must be greater than 2.4935e-10 Hz.")
                 
-        elif self.which_PTA == 'NanoGrav':
-            if np.any(frequency_array < 3.9536e-10):
-                raise ValueError("For NanoGrav, frequency must be greater than 3.9536e-10 Hz.")
+        # elif self.which_PTA == 'NanoGrav':
+        #     if np.any(frequency_array < 3.9536e-10):
+        #         raise ValueError("For NanoGrav, frequency must be greater than 3.9536e-10 Hz.")
                 
-        else:
-            if np.any(frequency_array < 4.2153e-10):
-                raise ValueError("For PPTA and IPTA, frequency must be greater than 4.2153e-10 Hz.")
+        # else:
+        #     if np.any(frequency_array < 4.2153e-10):
+        #         raise ValueError("For PPTA and IPTA, frequency must be greater than 4.2153e-10 Hz.")
         # if not hs>0:
             # raise ValueError("hs should >0")
         #if not frequency:
@@ -71,8 +73,9 @@ class PTA_individual:
     def sens_curve_directional(self,ra, dec, psi, iota, freq, rhostar):
         if not rhostar>0:
             raise ValueError("rhostar should be larger than 0")
-        hs_fidu=1e-15
-        snr_fidu=self.SNR_old(ra=ra, dec=dec, hs=hs_fidu, frequency=freq, phi=psi, iota=iota)
+        hs_fidu=1e-13
+        snr_fidu=self.SNR(ra=ra, dec=dec, hs=hs_fidu, frequency=freq, phi=psi, iota=iota)
+        snr_fidu=np.array(snr_fidu)
         hs_sen=np.where(snr_fidu==0,1e-8, np.sqrt(rhostar/snr_fidu)*hs_fidu)
         #if snr_fidu==0:
         #    hs_sen=1e-8
@@ -89,7 +92,7 @@ class PTA_individual:
         iota_s=np.pi/2.-iota_s # 90 degree convert to iota=0 degree
         Beta_s=Angle(theta_s,unit=u.radian).to_string(unit=u.degree,sep=':') # ecliptic latitude
         Lambda_s=Angle(phi_s, unit=u.radian).to_string(unit=u.hour,sep=':') # eclipitc longitude
-        Freqs=np.logspace(-2,3,20) # in year^-1
+        Freqs=np.logspace(-1.8,0.8,100) # in year^-1
         sens_cube=np.array([self.sens_curve_directional(ra=Lambda_s[i], dec=Beta_s[i], psi=psi_s[i], iota=iota_s[i], freq=Freqs, rhostar=1) for i in range(Skypositions)])
         #sens_cube=np.array([[self.sens_curve_directional(ra=Lambda_s[i], dec=Beta_s[i], psi=psi_s[i], iota=iota_s[i], freq=Freqs[j], rhostar=1) for i in range(Skypositions)] for j in range(FreqBins)]) 
         sens_ave=np.mean(sens_cube, axis=0)
