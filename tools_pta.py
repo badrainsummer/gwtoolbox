@@ -27,16 +27,20 @@ class PTA_individual:
                 raise ValueError("All values of hs must be greater than 0.")
         elif hs <= 0:
             raise ValueError("hs must be greater than 0.")
-        if frequency>2e-7:
+        frequency_array = np.asarray(frequency)
+        if np.any(frequency_array > 2e-7):
             raise ValueError("frequency must be smaller than 2e-7.")
+        
         if self.which_PTA == 'EPTA':
-            if frequency<2.4935e-10:
+            if np.any(frequency_array < 2.4935e-10):
                 raise ValueError("For EPTA, frequency must be greater than 2.4935e-10 Hz.")
+                
         elif self.which_PTA == 'NanoGrav':
-            if frequency<3.9536e-10:
+            if np.any(frequency_array < 3.9536e-10):
                 raise ValueError("For NanoGrav, frequency must be greater than 3.9536e-10 Hz.")
+                
         else:
-            if frequency<4.2153e-10:
+            if np.any(frequency_array < 4.2153e-10):
                 raise ValueError("For PPTA and IPTA, frequency must be greater than 4.2153e-10 Hz.")
         # if not hs>0:
             # raise ValueError("hs should >0")
