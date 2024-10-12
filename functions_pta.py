@@ -379,11 +379,11 @@ def open_pkl_asdir(specsdir):
 
 def hasasia_S_eff(SM, psi, iota, obs_plan="A", T=10, Ndot=10):
     if obs_plan == "A":
-        S_eff_inv_1 = 6./5 * np.sum(SM.S_SkyI_full(iota, psi), axis=1)*SM.Tspan
+        S_eff_inv_1 = np.sum(SM.S_SkyI_full(iota, psi), axis=1)*SM.Tspan
         S_eff_inv_2 = 0
     elif obs_plan == "B":
         T_a = T*u.year
-        S_eff_inv_1 = 6./5 * np.sum(SM.S_SkyI_full(iota, psi)/SM.T_I[:,np.newaxis]*(SM.T_I+T_a.to(u.s).value)[:,np.newaxis], axis=1)*SM.Tspan
+        S_eff_inv_1 = np.sum(SM.S_SkyI_full(iota, psi)/SM.T_I[:,np.newaxis]*(SM.T_I+T_a.to(u.s).value)[:,np.newaxis], axis=1)*SM.Tspan
         S_eff_inv_2 = 0
     elif obs_plan == "C":  
         T_a = T*u.year
@@ -392,6 +392,6 @@ def hasasia_S_eff(SM, psi, iota, obs_plan="A", T=10, Ndot=10):
         S_SkyI = SM.S_SkyI_full(iota, psi)
         S_SkyI = S_SkyI/t_I[:,np.newaxis]
         S_SkyI_mean = np.mean(S_SkyI,axis=1)
-        S_eff_inv_1 = 6./5 * np.sum(SM.S_SkyI_full(iota, psi)/SM.T_I[:,np.newaxis]*(SM.T_I+T_a.to(u.s).value)[:,np.newaxis], axis=1)*SM.Tspan
-        S_eff_inv_2 = 6./5 * S_SkyI_mean*((N_y*T_a**2/2).to(u.s).value)
+        S_eff_inv_1 = np.sum(SM.S_SkyI_full(iota, psi)/SM.T_I[:,np.newaxis]*(SM.T_I+T_a.to(u.s).value)[:,np.newaxis], axis=1)*SM.Tspan
+        S_eff_inv_2 = S_SkyI_mean*((N_y*T_a**2/2).to(u.s).value)
     return S_eff_inv_1+S_eff_inv_2
