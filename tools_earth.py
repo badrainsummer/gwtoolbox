@@ -385,3 +385,151 @@ class Tools:
                 break;
         new_DF=my_fisher.attach_error_dataframe(dataframe, know_loc=know_loc)
         return new_DF
+
+class Tool:
+    def __init__(self, detector_type, cosmos, det_setup=None, scale=None, new_theta=None):
+        self.cosmos = cosmos
+        self.detector_type = detector_type
+        self.z = new_theta[0]
+        self.D = new_theta[1]
+        self.chi = new_theta[2]
+        self.m1 = new_theta[3]
+        self.m2 = new_theta[4]
+        if not self.z:
+            self.z = redshift_from_luminosity_distance(self.D*u.Mpc,cosmos=self.cosmos)
+        elif not self.D:
+            self.cosmos.luminosity_distance(self.z).to(u.Mpc).value
+        if det_setup!=None:
+            if not float(det_setup[0][1])>0:
+                raise ValueError("laser armlength must be positive.");
+            if not float(det_setup[1][1])>0:
+                raise ValueError("laser power must be positive.")
+            if (not float(det_setup[2][1])>0 or not	float(det_setup[2][1])<1):
+                raise ValueError("cavity mirror transmssion must in between 0 and 1.")
+            if (not float(det_setup[3][1])>0 or not float(det_setup[3][1])<1):
+                raise ValueError("signal recycling mirror transmssion must in between 0 and 1.")
+            if (not float(det_setup[4][1])>0 or not float(det_setup[4][1])<1):
+                raise ValueError("power recycling mirror transmssion must in between 0 and 1.")
+            if not float(det_setup[5][1])>0:
+                raise ValueError("Mirror Mass must be postive.")
+            if not float(det_setup[7][1])>0:
+                raise ValueError("Power recycling length must be positive")
+            if not float(det_setup[8][1])>0:
+                raise ValueError("Signal recycling length must be positive")
+
+        if detector_type in ['virgo', 'ligo', 'kagra','ligo-o3','ligo-o4']:
+            self.detector = LigoLike(self.detector_type)
+            # with current generation of detectors like LIGO/VIRGO/KAGRA, the peak detectable redshift is at local Universe.
+            self.ant_pat = self.detector.ante_pattern
+            self.noise = self.detector.noise_curve(det_setup)
+            self.generation='2G'
+            if scale!=None:
+                self.noise = self.noise[0], self.noise[1]*scale
+                minsens=min(self.noise[1])
+                if np.sqrt(minsens)>2e-24:
+                    self.generation='2G';
+                elif np.sqrt(minsens)>1e-24 and np.sqrt(minsens)<=2e-24:
+                    self.generation='med';
+                else:
+                    self.generation='3G';
+        elif detector_type in ['ce1','ce2']:
+            self.detector = LigoLike(self.detector_type)
+            # with current generation of detectors like LIGO/VIRGO/KAGRA, the peak detectable redshift is at local Universe.
+            self.ant_pat = self.detector.ante_pattern
+            self.noise = self.detector.noise_curve(det_setup)
+            self.generation='3G'
+        elif detector_type=='ligo-like':
+            self.detector = LigoLike(self.detector_type)
+            self.ant_pat = self.detector.ante_pattern
+            self.noise = self.detector.noise_curve(det_setup)
+            minsens=min(self.noise[1])
+            if np.sqrt(minsens)>2e-24:
+                self.generation='2G';
+            elif np.sqrt(minsens)>1e-24 and np.sqrt(minsens)<=2e-24:
+                self.generation='med';
+            else:
+                self.generation='3G';
+        elif detector_type in ['et', 'et-like']:
+            # the Next generation of detectors, the peak detectable red-shift is at z=1-2. and the range needs to be larger.
+            self.detector = ETLike(detector_type)
+            self.ant_pat = self.detector.ante_pattern
+            self.noise = self.detector.noise_curve(det_setup)
+            self.generation='3G';
+            if scale!=None:
+                self.noise = self.noise[0], self.noise[1]*scale
+                minsens=min(self.noise[1])
+                if np.sqrt(minsens)>2e-24:
+                    self.generation='2G';
+                elif np.sqrt(minsens)>1e-24 and np.sqrt(minsens)<=2e-24:
+                    self.generation='med';
+                else:
+                    self.generation='3G';
+        else:
+            raise ValueError("unknown detector type {}".format(detector_type))
+
+    def sensitivity_curve(self):
+        freq, power=self.noise
+        return [freq, np.sqrt(power)]
+    def sensitivity_curve_sjoerd(self):
+        """
+        Return the sensitivity curve of the experiment
+        """
+        #if not default:
+        #    freq, power=self.noise
+        #    return [freq, np.sqrt(power)]
+
+        #if not detector_type.endswith('-like'):
+        #    raise ValueError('Selected detector is already a default detector')
+
+        detector_class = type(self.detector)
+        default_type = self.detector_type[:-5]           # cut the '-like' part
+        default_detector = detector_class(default_type)  # instantiate a detector of the default type
+        default_noise = default_detector.noise_curve()
+        freq, power=default_noise
+        return [freq, np.sqrt(power)]
+
+    def snr(self):
+        ## individual SNR earth
+        length=1
+        m1 = self.m1
+        m2 = self.m2
+        z = self.z
+        chi = self.chi
+        Mch = chirp_mass(m1,m2)
+        D = self.D
+        detector = self.detector
+        noise = self.noise
+        population = BHB(self.cosmos)
+        dtb = population.tel_fun(z,m1,m2,rho_cri=8,ant_fun=detector.ante_pattern,noise_tab=noise)
+
+        f_up = population.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f2=population.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f3=population.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        freq_sig=population.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f1 = f_up
+
+        rho_sq_core_value = rho_sq_core(noise, population.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, population.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, population.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)
+
+        # theta_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
+        # varphi_array = np.random.uniform(low=0., high=2.*np.pi, size=length)
+        # iota_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
+        # psi_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
+
+        theta_array = np.array([np.arccos(0.)])
+        varphi_array = np.array([np.pi])
+        iota_array = np.array([np.arccos(0.)])
+        psi_array = np.array([np.arccos(0.)])
+
+        F = detector.ante_pattern(theta_array, varphi_array, psi_array)
+        A_array = population.mod_norm(Mch*(1+z), F, iota_array, z)
+
+        rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
+        return rho_sq_array
+
+
+        # params = np.zeros((5,2))
+        # params[:,0] = np.array([Mch,z,m1,m2,chi])
+        # params[:,1] = np.array([Mch,z,m1,m2,chi])
+
+        # errs = population.errors_FIM(1,params,noise)
+        # print(errs)

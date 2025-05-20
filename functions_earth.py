@@ -694,3 +694,49 @@ def give_angles(det, pop, dtb):
         PSI=np.array([psi[np.random.choice(indice[1-int(len(indice)*dtb_):])] for dtb_ in dtb])
         result=[THETA,VARPHI,IOTA,PSI]
     return result
+
+from astropy.cosmology import Planck18  # or replace with your cosmology model
+from scipy.optimize import root_scalar
+import astropy.units as u
+
+def redshift_from_luminosity_distance(DL, cosmos=Planck18, z_max=20):
+    """
+    Calculate redshift (z) given a luminosity distance (DL) using numerical root finding.
+
+    Parameters
+    ----------
+    DL : astropy.units.Quantity
+        Luminosity distance with units (e.g., Mpc).
+    cosmo : astropy.cosmology.FLRW, optional
+        Cosmological model to use for the calculation. Default is Planck18.
+    z_max : float, optional
+        Maximum redshift to search for the root. Default is 20.
+
+    Returns
+    -------
+    float
+        The redshift corresponding to the given luminosity distance.
+
+    Raises
+    ------
+    RuntimeError
+        If the numerical root finding fails to converge.
+    ValueError
+        If the input luminosity distance does not have proper units.
+    """
+    if not isinstance(DL, u.Quantity):
+        raise ValueError("Input luminosity distance must be an astropy Quantity with units.")
+
+    DL = DL.to(u.Mpc)  # Convert to Mpc for consistency
+
+    # Define the function whose root corresponds to the correct redshift
+    def func(z):
+        return (cosmos.luminosity_distance(z) - DL).value
+
+    # Use root_scalar to find the redshift where func(z) = 0
+    sol = root_scalar(func, bracket=[1e-5, z_max], method='brentq')
+
+    if sol.converged:
+        return sol.root
+    else:
+        raise RuntimeError("Root finding did not converge: cannot determine redshift for given luminosity distance.")
