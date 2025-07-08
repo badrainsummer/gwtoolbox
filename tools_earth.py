@@ -460,37 +460,56 @@ class Tools:
         ## individual SNR earth
         z, D, chi, m1, m2 = theta
         if not z:
-            z = redshift_from_luminosity_distance(self.D*u.Mpc,cosmos=self.cosmos)
+            z = redshift_from_luminosity_distance(D*u.Mpc,cosmos=self.cosmos)
         elif not D:
-            D = self.cosmos.luminosity_distance(self.z).to(u.Mpc).value
+            D = self.cosmos.luminosity_distance(z).to(u.Mpc).value
         Mch = chirp_mass(m1,m2)
-        detector = self.detector
-        noise = self.noise
-        population = BHB(self.cosmos)
-        dtb = population.tel_fun(z,m1,m2,rho_cri=8,ant_fun=detector.ante_pattern,noise_tab=noise)
+        if self.network:
+            rho_sq_array = []
+            population = self.population_class
+            for i in range(len(self.detector)):
+                detector = self.detector[i]
+                noise = self.noise[i]
 
-        f_up = population.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        f2=population.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        f3=population.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        freq_sig=population.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        f1 = f_up
+                f_up = population.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+                f2=population.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+                f3=population.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+                freq_sig=population.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+                f1 = f_up
 
-        rho_sq_core_value = rho_sq_core(noise, population.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, population.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, population.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)
+                rho_sq_core_value = rho_sq_core(noise, population.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, population.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, population.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)
 
-        # theta_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
-        # varphi_array = np.random.uniform(low=0., high=2.*np.pi, size=length)
-        # iota_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
-        # psi_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
+                theta_array = np.array([np.arccos(0.)])
+                varphi_array = np.array([np.pi])
+                iota_array = np.array([np.arccos(0.)])
+                psi_array = np.array([np.arccos(0.)])
 
-        theta_array = np.array([np.arccos(0.)])
-        varphi_array = np.array([np.pi])
-        iota_array = np.array([np.arccos(0.)])
-        psi_array = np.array([np.arccos(0.)])
+                F = detector.ante_pattern(theta_array, varphi_array, psi_array)
+                A_array = population.mod_norm(Mch*(1+z), F, iota_array, z)
 
-        F = detector.ante_pattern(theta_array, varphi_array, psi_array)
-        A_array = population.mod_norm(Mch*(1+z), F, iota_array, z)
+                rho_sq_array.append(np.array(4.*A_array**2*rho_sq_core_value))
+        else:
+            detector = self.detector
+            noise = self.noise
+            population = BHB(self.cosmos)
 
-        rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
+            f_up = population.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+            f2=population.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+            f3=population.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+            freq_sig=population.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+            f1 = f_up
+
+            rho_sq_core_value = rho_sq_core(noise, population.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, population.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, population.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)
+
+            theta_array = np.array([np.arccos(0.)])
+            varphi_array = np.array([np.pi])
+            iota_array = np.array([np.arccos(0.)])
+            psi_array = np.array([np.arccos(0.)])
+
+            F = detector.ante_pattern(theta_array, varphi_array, psi_array)
+            A_array = population.mod_norm(Mch*(1+z), F, iota_array, z)
+
+            rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
         return rho_sq_array
 
 
