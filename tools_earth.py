@@ -18,6 +18,18 @@ from itertools import accumulate
 from astropy.cosmology import z_at_value
 
 def set_cosmology(cosmoID=None, H0=None, Om0=None, Tcmb=None):
+    """
+    Set the cosmological model.
+
+    Parameters:
+      cosmoID (optional): Cosmology identifier.
+      H0 (optional): Hubble constant.
+      Om0 (optional): Matter density parameter.
+      Tcmb (optional): CMB temperature.
+
+    Returns:
+      cosmos: Cosmology instance.
+    """
     cosmos_class = Cosmology()
     cosmos = cosmos_class.set_cosmo(cosmoID,H0,Om0, Tcmb)
     return cosmos
@@ -41,12 +53,16 @@ class Tools:
 
     def __init__(self, detector_type, event_type, population, cosmos, det_setup=None, scale=None, new_theta=None):
         """
+        Initialize the Tools class.
+
         Parameters:
-          detector_type (string): one of 'virgo', 'ligo', 'et', 'kagra', 'ce1','ce2','ligo-like or 'et-like'
-          event_type (string): one of 'nsns', 'bhns' or 'bhbh','bg_dns', 'bg_bbh', 'bg_nsbh'
-          population (string): either 'I' or 'II'
-          cosmos (class): cosmological model
-          det_setup (Optional[list of dtype floats]): parameters to modify the detector noise
+          detector_type (string or list): Detector type(s).
+          event_type (string): Event type.
+          population (string): Population type.
+          cosmos (class): Cosmological model.
+          det_setup (optional): Detector noise parameters.
+          scale (optional): Noise scaling.
+          new_theta (optional): New population parameters.
         """
         
         self.cosmos = cosmos
@@ -318,11 +334,14 @@ class Tools:
         return self.ndet
 
     def sensitivity_curve(self):
+        """
+        Return the sensitivity curve (frequency, sqrt(power)) of the detector.
+        """
         freq, power=self.noise
         return [freq, np.sqrt(power)]
     def sensitivity_curve_sjoerd(self):
         """
-        Return the sensitivity curve of the experiment
+        Return the sensitivity curve of the experiment using default detector settings.
         """
         detector_class = type(self.detector)
         default_type = self.detector_type[:-5]
@@ -333,15 +352,18 @@ class Tools:
 
     def _list_params(self, time_obs=TIME_OBS_EARTH, rho_cri=RHO_CRIT_EARTH, size=None, dtp=False, withangles=False, witherrors=False):
         """
-        Return an array of final parameters.
+        Return an array of final parameters, optionally with angles and errors.
 
         Parameters:
           time_obs (float): Observation time, in unit of minute
           rho_cri (float): The SNR threshold of detection
           size (Optional[int]): sample size
+          dtp (bool): Include dtp column.
+          withangles (bool): Include angles.
+          witherrors (bool): Include parameter errors.
 
         Returns:
-          (list of arrays of dtype float): samples
+          (array or tuple): samples or (samples, loc) if network and withangles.
         """
         if size == None:
             self.number = np.random.poisson(lam=self.population_class.tot_num(time_obs,rho_cri,self.ant_pat,self.noise,self.generation,self.detector_type))
@@ -386,6 +408,20 @@ class Tools:
             return samples
 
     def list_params(self, time_obs=TIME_OBS_EARTH, rho_cri=RHO_CRIT_EARTH, size=None, dtp=False, withangles=False, witherrors=False):
+        """
+        Return a DataFrame of parameters, optionally with angles and errors.
+
+        Parameters:
+          time_obs (float): Observation time, in unit of minute
+          rho_cri (float): The SNR threshold of detection
+          size (Optional[int]): sample size
+          dtp (bool): Include dtp column.
+          withangles (bool): Include angles.
+          witherrors (bool): Include parameter errors.
+
+        Returns:
+          DataFrame or (DataFrame, loc) if network and withangles.
+        """
         if self.network and withangles:
             cata, loc = self._list_params(time_obs=time_obs, rho_cri=rho_cri, size=size, dtp=dtp, withangles=withangles, witherrors=witherrors)
         else:
@@ -428,6 +464,15 @@ class Tools:
             return df
 
     def list_with_iota(self, dataframe):
+        """
+        Add inclination ('inc') column to the dataframe.
+
+        Parameters:
+          dataframe (pd.DataFrame): Input dataframe.
+
+        Returns:
+          pd.DataFrame: Dataframe with 'inc' column.
+        """
         dtbs=dataframe['dtb']
         det=self.detector
         pop=self.population_class
@@ -436,6 +481,15 @@ class Tools:
         return dataframe
 
     def list_with_angles(self, dataframe):
+        """
+        Add angle columns ('theta', 'varphi', 'inc', 'psi') to the dataframe.
+
+        Parameters:
+          dataframe (pd.DataFrame): Input dataframe.
+
+        Returns:
+          pd.DataFrame: Dataframe with angle columns.
+        """
         dtbs=dataframe['dtb']
         det=self.detector
         pop=self.population_class
@@ -447,6 +501,16 @@ class Tools:
         return dataframe
 
     def get_better_fisher(self, dataframe, know_loc=1):
+        """
+        Attach Fisher matrix errors to the dataframe.
+
+        Parameters:
+          dataframe (pd.DataFrame): Input dataframe.
+          know_loc (int): Whether location is known.
+
+        Returns:
+          pd.DataFrame: Dataframe with error columns.
+        """
         from gwtoolbox.function_earth_fisher import fisher
         my_fisher=fisher(det=self.detector, approximant='IMRPhenomD', cosmos=self.cosmos);
         for key in ['theta', 'varphi', 'inc', 'psi']:
@@ -457,6 +521,15 @@ class Tools:
         return new_DF
     
     def snr(self, theta=None):
+        """
+        Compute the SNR for given parameters.
+
+        Parameters:
+          theta (tuple): (z, D, chi, m1, m2)
+
+        Returns:
+          array: SNR squared values.
+        """
         ## individual SNR earth
         z, D, chi, m1, m2 = theta
         if not z:
@@ -521,7 +594,17 @@ class Tools:
         # print(errs)
     
     def create_BNScatalog(self, T=525600, popu=[50,3,1.4,0.5,1.1,2.5,0.1], pathname=None):
+        """
+        Create a BNS catalog.
 
+        Parameters:
+          T (int): Total observation time in minutes.
+          popu (list): Population parameters.
+          pathname (str): Optional path to save CSV.
+
+        Returns:
+          pd.DataFrame: BNS catalog.
+        """
         Ti=T/525600 #year
         R0=popu[0]    
         def rm(z):
@@ -569,6 +652,17 @@ class Tools:
         return df_BNS
     
     def create_backgroundcatalog(self, rho, T=4, pathname=None):
+        """
+        Create a background catalog.
+
+        Parameters:
+          rho (float): SNR threshold.
+          T (int): Observation time in years.
+          pathname (str): Optional path to save CSV.
+
+        Returns:
+          pd.DataFrame: Background catalog.
+        """
         FAR8=30000
         cri_dis=2493.8699694225065
         alpha=0.13
@@ -600,6 +694,16 @@ class Tools:
         return df
     
     def create_GWcatalog(self,rho_cri, pathname=None):
+        """
+        Create a GW catalog from BNS catalog with SNR cut.
+
+        Parameters:
+          rho_cri (float): SNR threshold.
+          pathname (str): Optional path to save CSV.
+
+        Returns:
+          pd.DataFrame: GW catalog.
+        """
         df_BNS=self.BNScatalog[self.BNScatalog['z']<=0.4].reset_index(drop=True)
         N=len(df_BNS)
         z,D,m1,m2,rho,theta,varphi,inc,psi,area,dD,time=[],[],[],[],[],[],[],[],[],[],[],[]
@@ -624,7 +728,18 @@ class Tools:
             df_gw.to_csv(f'{pathname}.csv')
         return df_gw
     
-    def create_kilonovacatalog(self,z1=0.036,z2=0.022, pathname=None):#for WFST or 0.067, 0.056 for LSST
+    def create_kilonovacatalog(self,z1=0.036,z2=0.022, pathname=None):
+        """
+        Create a kilonova catalog.
+
+        Parameters:
+          z1 (float): Redshift threshold for full detection.
+          z2 (float): Redshift width for detection probability.
+          pathname (str): Optional path to save CSV.
+
+        Returns:
+          pd.DataFrame: Kilonova catalog.
+        """
         df_BNS=self.BNScatalog[self.BNScatalog['z']<=0.4].reset_index(drop=True)
         N=len(df_BNS)
         def Pdet_kilo(z,z1=z1,z2=z2):
@@ -651,7 +766,18 @@ class Tools:
             df_kilo.to_csv(f'{pathname}.csv')
         return df_kilo
 
-    def create_sgrbcatalog(self,flim=2*10**(-7), lam=0.6, pathname=None): #20 for off-axis 
+    def create_sgrbcatalog(self,flim=2*10**(-7), lam=0.6, pathname=None):
+        """
+        Create an sGRB catalog.
+
+        Parameters:
+          flim (float): Flux limit.
+          lam (float): Detection efficiency parameter.
+          pathname (str): Optional path to save CSV.
+
+        Returns:
+          pd.DataFrame: sGRB catalog.
+        """
         N=len(self.BNScatalog)
         def Pdet_sgrb(z, thetav, thetac, flim=flim, lam=lam):
             L_star=2*10**52
@@ -684,6 +810,15 @@ class Tools:
         return df_sgrb
     
     def kilonovae(self, pathname=None):
+        """
+        Simulate GW-EM coincidence for kilonovae.
+
+        Parameters:
+          pathname (str): Optional path to save CSV.
+
+        Returns:
+          pd.DataFrame: Results of coincidence simulation.
+        """
         MISID=[]
         rho_list = np.linspace(8.0,9.3,14)
         df_kilo = self.create_kilonovacatalog(z1=0.067,z2=0.056)
@@ -737,6 +872,15 @@ class Tools:
         return df
     
     def sgrb(self, pathname=None):
+        """
+        Simulate GW-EM coincidence for sgrb.
+
+        Parameters:
+          pathname (str): Optional path to save CSV.
+
+        Returns:
+          pd.DataFrame: Results of coincidence simulation.
+        """
         MISID=[]
         rho_list = np.linspace(8.0,9.3,14)
         df_kilo = self.create_sgrbcatalog(flim=2*10**(-8), lam=1)
