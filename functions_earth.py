@@ -6,11 +6,132 @@ from scipy.stats import skewnorm
 from scipy.stats import multivariate_normal
 from scipy.stats import truncnorm
 import random
-#sys.path.append('/Users/yishuxu/Downloads/itsample')
-#from itsample import sample
-#mcut=55
-#import zeus
 from .ESS import EllipticalSliceSampler
+from astropy import units as u
+from astropy import constants as const
+from astropy.coordinates import SkyCoord
+from astropy.coordinates import EarthLocation
+from astropy.cosmology import Planck18  # or replace with your cosmology model
+from scipy.optimize import root_scalar
+#tranform theta, varphi, psi to detector frame
+def transform_angles(theta, varphi, psi, name):
+    if name=='virgo':
+        det_lo=[10.504/180*np.pi, 43.631/180*np.pi, 71/180*np.pi]
+        a=np.array([[np.cos(det_lo[2]), -np.sin(det_lo[2]), 0], [np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+        b=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), np.sin(det_lo[1])], [0,-np.sin(det_lo[1]),np.cos(det_lo[1])]])
+        c=np.array([[np.cos(det_lo[0]), 0, -np.sin(det_lo[0])], [0, 1, 0], [-np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+        x_a=np.array([np.sin(theta)*np.cos(varphi), np.sin(theta)*np.sin(varphi), np.cos(theta)]).T
+        x_b=a@b@c@x_a
+        theta_new=np.arccos(x_b[2])
+        if x_b[1]>0 and x_b[0]>0:
+            phi_new=np.arctan(x_b[1]/x_b[0])
+        if x_b[0]==0 and x_b[1]>0:
+            phi_new=np.pi/2
+        if x_b[0]<0 and x_b[1]>0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+        if x_b[0]==0 and x_b[1]<0:
+            phi_new=3*np.pi/2
+        if x_b[0]<0 and x_b[1]<0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+        if x_b[0]>0 and x_b[1]<0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+2*np.pi
+        d=np.array([[np.cos(det_lo[2]), np.sin(det_lo[2]), 0], [-np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+        e=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), -np.sin(det_lo[1])], [0,np.sin(det_lo[1]),np.cos(det_lo[1])]])
+        f=np.array([[np.cos(det_lo[0]), 0, np.sin(det_lo[0])], [0, 1, 0], [np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+        x_c=np.array([1, 0, 0]).T
+        x_d=f@e@d@x_c
+        n=x_d - np.dot(x_d, x_b)*x_b
+        m=x_c - np.dot(x_c, x_b)*x_b
+        psi_new=abs(psi-np.arccos(np.dot(m,n)/np.linalg.norm(m)/np.linalg.norm(n)))
+        return theta_new, phi_new, psi_new
+    if name=='hanford':
+        det_lo=[46.455/180*np.pi, 240.592/180*np.pi, 126/180*np.pi]
+        a=np.array([[np.cos(det_lo[2]), -np.sin(det_lo[2]), 0], [np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+        b=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), np.sin(det_lo[1])], [0,-np.sin(det_lo[1]),np.cos(det_lo[1])]])
+        c=np.array([[np.cos(det_lo[0]), 0, -np.sin(det_lo[0])], [0, 1, 0], [-np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+        x_a=np.array([np.sin(theta)*np.cos(varphi), np.sin(theta)*np.sin(varphi), np.cos(theta)]).T
+        x_b=a@b@c@x_a
+        theta_new=np.arccos(x_b[2])
+        if x_b[1]>0 and x_b[0]>0:
+            phi_new=np.arctan(x_b[1]/x_b[0])
+        if x_b[0]==0 and x_b[1]>0:
+            phi_new=np.pi/2
+        if x_b[0]<0 and x_b[1]>0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+        if x_b[0]==0 and x_b[1]<0:
+            phi_new=3*np.pi/2
+        if x_b[0]<0 and x_b[1]<0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+        if x_b[0]>0 and x_b[1]<0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+2*np.pi
+        d=np.array([[np.cos(det_lo[2]), np.sin(det_lo[2]), 0], [-np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+        e=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), -np.sin(det_lo[1])], [0,np.sin(det_lo[1]),np.cos(det_lo[1])]])
+        f=np.array([[np.cos(det_lo[0]), 0, np.sin(det_lo[0])], [0, 1, 0], [np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+        x_c=np.array([1, 0, 0]).T
+        x_d=f@e@d@x_c
+        n=x_d - np.dot(x_d, x_b)*x_b
+        m=x_c - np.dot(x_c, x_b)*x_b
+        psi_new=abs(psi-np.arccos(np.dot(m,n)/np.linalg.norm(m)/np.linalg.norm(n)))
+        return theta_new, phi_new, psi_new
+    if name=='livingston':
+        det_lo=[30.563/180*np.pi, 269.226/180*np.pi, 198/180*np.pi]
+        a=np.array([[np.cos(det_lo[2]), -np.sin(det_lo[2]), 0], [np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+        b=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), np.sin(det_lo[1])], [0,-np.sin(det_lo[1]),np.cos(det_lo[1])]])
+        c=np.array([[np.cos(det_lo[0]), 0, -np.sin(det_lo[0])], [0, 1, 0], [-np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+        x_a=np.array([np.sin(theta)*np.cos(varphi), np.sin(theta)*np.sin(varphi), np.cos(theta)]).T
+        x_b=a@b@c@x_a
+        theta_new=np.arccos(x_b[2])
+        if x_b[1]>0 and x_b[0]>0:
+            phi_new=np.arctan(x_b[1]/x_b[0])
+        if x_b[0]==0 and x_b[1]>0:
+            phi_new=np.pi/2
+        if x_b[0]<0 and x_b[1]>0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+        if x_b[0]==0 and x_b[1]<0:
+            phi_new=3*np.pi/2
+        if x_b[0]<0 and x_b[1]<0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+        if x_b[0]>0 and x_b[1]<0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+2*np.pi
+        d=np.array([[np.cos(det_lo[2]), np.sin(det_lo[2]), 0], [-np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+        e=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), -np.sin(det_lo[1])], [0,np.sin(det_lo[1]),np.cos(det_lo[1])]])
+        f=np.array([[np.cos(det_lo[0]), 0, np.sin(det_lo[0])], [0, 1, 0], [np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+        x_c=np.array([1, 0, 0]).T
+        x_d=f@e@d@x_c
+        n=x_d - np.dot(x_d, x_b)*x_b
+        m=x_c - np.dot(x_c, x_b)*x_b
+        psi_new=abs(psi-np.arccos(np.dot(m,n)/np.linalg.norm(m)/np.linalg.norm(n)))
+        return theta_new, phi_new, psi_new
+    if name=='KAGRA':
+        det_lo=[36.41/180*np.pi, 137.31/180*np.pi, 28.3/180*np.pi]
+        a=np.array([[np.cos(det_lo[2]), -np.sin(det_lo[2]), 0], [np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+        b=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), np.sin(det_lo[1])], [0,-np.sin(det_lo[1]),np.cos(det_lo[1])]])
+        c=np.array([[np.cos(det_lo[0]), 0, -np.sin(det_lo[0])], [0, 1, 0], [-np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+        x_a=np.array([np.sin(theta)*np.cos(varphi), np.sin(theta)*np.sin(varphi), np.cos(theta)]).T
+        x_b=a@b@c@x_a
+        theta_new=np.arccos(x_b[2])
+        if x_b[1]>0 and x_b[0]>0:
+            phi_new=np.arctan(x_b[1]/x_b[0])
+        if x_b[0]==0 and x_b[1]>0:
+            phi_new=np.pi/2
+        if x_b[0]<0 and x_b[1]>0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+        if x_b[0]==0 and x_b[1]<0:
+            phi_new=3*np.pi/2
+        if x_b[0]<0 and x_b[1]<0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+        if x_b[0]>0 and x_b[1]<0:
+            phi_new=np.arctan(x_b[1]/x_b[0])+2*np.pi
+        d=np.array([[np.cos(det_lo[2]), np.sin(det_lo[2]), 0], [-np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+        e=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), -np.sin(det_lo[1])], [0,np.sin(det_lo[1]),np.cos(det_lo[1])]])
+        f=np.array([[np.cos(det_lo[0]), 0, np.sin(det_lo[0])], [0, 1, 0], [np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+        x_c=np.array([1, 0, 0]).T
+        x_d=f@e@d@x_c
+        n=x_d - np.dot(x_d, x_b)*x_b
+        m=x_c - np.dot(x_c, x_b)*x_b
+        psi_new=abs(psi-np.arccos(np.dot(m,n)/np.linalg.norm(m)/np.linalg.norm(n)))
+        return theta_new, phi_new, psi_new
+
 def sample1D(pdf, ranges, size):
     """
     sample from 1D distribution using 2-D MC method.
@@ -542,9 +663,9 @@ def mcmcunit_scout_bhbh_zeus(p):
     return cat
 def mcmcunit_scout_bhbh(p):
     burnin=1000 # that's in my laptop
-    func, nsample, inits, T, rho_cri, ant_fun, noise_tab, cosmos, seed, chi_sig = p
+    func, nsample, inits, T, rho_cri, ant_fun, noise_tab, name, withangles, cosmos, seed, chi_sig = p
     nskip=max(int(3000/nsample),1)
-    loglike= lambda f: f[0]+f[1]+f[2]+np.log(1e-100+func (T,np.exp(f[0]),np.exp(f[1]),np.exp(f[2]),rho_cri,ant_fun,noise_tab, accurate=False))
+    loglike= lambda f: f[0]+f[1]+f[2]+np.log(1e-100+func (T,np.exp(f[0]),np.exp(f[1]),np.exp(f[2]),rho_cri,ant_fun,noise_tab, accurate=False, name=name, withangles=withangles))
     z0, m10, m20, chi0 = inits
     mean=np.array([np.log(z0),np.log(m10),np.log(m20)])
     covariance=np.array([[1,0,0],[0,1,0], [0,0,1]])
@@ -666,7 +787,7 @@ def give_iota(det, pop, dtb):
         index=np.random.choice(indice[1-int(len(indice)*dtb):])
         result=iota[index]
     else:
-       result=np.array([iota[np.random.choice(indice[1-int(len(indice)*dtb_):])] for dtb_ in dtb])
+        result=np.array([iota[np.random.choice(indice[1-int(len(indice)*dtb_):])] for dtb_ in dtb])
     return result
 
 def give_angles(det, pop, dtb):
@@ -695,9 +816,267 @@ def give_angles(det, pop, dtb):
         result=[THETA,VARPHI,IOTA,PSI]
     return result
 
-from astropy.cosmology import Planck18  # or replace with your cosmology model
-from scipy.optimize import root_scalar
-import astropy.units as u
+def sig_t(rho, sig_f):
+    # Timing measurement uncertainty given a signal's SNR and bandwidth
+    return 1/(2*np.pi*rho*sig_f)
+
+# Finding the matrix M based on detector location and uncertainty for an arbitrary number of them.
+def m(d, s):
+    # d and s must be given as lists
+    # Using the definition from Fairhurst 2012.
+    M = np.zeros((3, 3))
+    for i, di in enumerate(d):
+        for j, dj in enumerate(d):
+            addition = np.outer(di-dj, di-dj)/(2*s[i]**2*s[j]**2)
+            M += addition
+    # Overall factor outside the summation:
+    corr = 0
+    for i, s in enumerate(s):
+        corr += s**-2
+    M /= corr
+    return M
+
+# Taking an EarthLocation object and changing it into a numpy array.
+def EL_to_np(EarthLoc):
+    return np.array([EarthLoc.x.value, EarthLoc.y.value, EarthLoc.z.value])
+
+# Converting from cartesian to spherical coordinates.
+# 0<theta<pi, -pi<phi<pi ranges.
+def cart_to_sph(cart):
+    r = np.linalg.norm(cart)
+    theta = np.arccos(cart[2]/r)
+    phi = 0 # Placeholder value.
+    if cart[0]==0:
+        if cart[1]>0:
+            phi = np.pi/2
+        if cart[1]<0:
+            phi = -np.pi/2
+    else:
+        phi = np.arctan(cart[1]/cart[0])
+        if cart[0]<0:
+            if cart[1]>=0:
+                phi += np.pi
+            if cart[1]<0:
+                phi -= np.pi
+    return np.array([r, theta, phi])
+
+# Converting a 3D vector's unit from meters to lightseconds.
+def m_to_ls(loc):
+    sph = cart_to_sph(loc)
+    r = sph[0]/const.c.value
+    theta = sph[1]
+    phi = sph[2]
+    x = r*np.cos(phi)*np.sin(theta)
+    y = r*np.sin(phi)*np.sin(theta)
+    z = r*np.cos(theta)
+    return np.array([x, y, z])
+
+# Posterior based on an arbitrary number of detectors.
+def post(d, s, r, R):
+    # R is true, r is inferred
+    R_sph = cart_to_sph(R) # Theta is needed from this function.
+    M = m(d, s)
+    diff = np.reshape(r-R, (3, 1))
+    exp = -np.matmul(diff.T, M)
+    exp = np.matmul(exp, diff)/2
+    return np.exp(exp)*np.sin(R_sph[1])/(4*np.pi)
+
+# Mapping the vector x to the eigenbasis and projecting it onto the nondegenerate eigenvectors.
+# Might be suited particularly to the 3-detector case.
+def eigenprojection(x, eigvals, eigvecs):
+    return projection(eigenmapping(x, eigvecs), eigvals)
+
+# Maps vector x onto the eigenbasis.
+def eigenmapping(x, eigvecs):
+    mapping = np.linalg.inv(eigvecs)
+    return np.matmul(mapping, x)
+
+# Maps x to the geocentric basis.
+def geomapping(x, eigvecs):
+    return np.matmul(eigvecs, x)
+
+# Projects x in the eigenbasis onto the degenerate eigenvectors.
+# Might be suited particularly to the 3-detector case.
+def projection(x, eigvals):
+    degen = np.argmin(np.absolute(eigvals))
+    projection = np.delete(np.identity(3), degen, 0)
+    return np.matmul(projection, x)
+
+# Generates a unit vector at random.
+def random_R():
+    theta = np.random.rand()*np.pi
+    phi = np.random.rand()*2*np.pi
+    return R_from_theta_phi(theta, phi)
+
+# Generates a unit vector given two angular coordinates.
+def R_from_theta_phi(theta, phi):
+    return np.array([np.cos(phi)*np.sin(theta), np.sin(phi)*np.sin(theta), np.cos(theta)])
+
+# Particular posterior function for the 3-detector case.
+def post_eigenbasis_2D(R, r, eigvals, eigvecs):
+    R_eigenmapping = eigenmapping(R, eigvecs)
+    r_eigenmapping = eigenmapping(r, eigvecs)
+    #theta = np.arctan(np.sqrt(R_eigenmapping[0]**2+R_eigenmapping[1]**2)/R_eigenmapping[2])
+    theta = np.arccos(R_eigenmapping[2]/np.linalg.norm(R_eigenmapping))
+    degen = np.argmin(np.absolute(eigvals))
+    exponent = 0
+    for i in range(3):
+        if i != degen:
+            exponent += eigvals[i]*(r_eigenmapping[i]-R_eigenmapping[i])**2
+        else:
+            pass
+    exponent *= -1/2
+    return np.exp(exponent)*np.sin(theta)/(4*np.pi)
+
+# Reflecting a vector through the specified (eigen)vectors. For the 3-detector case.
+def reflect_Householder(x, eigvecs):
+    normal = np.cross(eigvecs[:, 0], eigvecs[:, 1])
+    reflection = np.identity(3)-2*np.outer(normal, normal)/np.inner(normal, normal)
+    return np.matmul(reflection, x)
+
+# Coordinates of the confidence region of the posterior.
+# Particular to the 3-detector case.
+# Calculation of all the formulas in my notes, dated 07-06-2022.
+# Does not work perfectly, some edge cases act up.
+def confidence_region_coords(p, r, eigvals, y_n=1000):
+    y = np.linspace(-np.sqrt(-2*np.log(1-p)/eigvals[1])+r[1], np.sqrt(-2*np.log(1-p)/eigvals[1])+r[1], y_n)
+    x_up = np.sqrt((-2*np.log(1-p)-eigvals[1]*(y-r[1])**2)/eigvals[0])+r[0]
+    y_rev = np.flip(y) # This is to make it possible in matplotlib to use plt without having a 'discontinuity'
+    x_low = -np.sqrt((-2*np.log(1-p)-eigvals[1]*(y-r[1])**2)/eigvals[0])+r[0]
+    x = np.append(x_up, x_low)
+    y = np.append(y, y_rev)
+    if np.allclose(np.sqrt(1-r[0]**2-r[1]**2), r[2]):
+        #z = np.sqrt(1-x**2-y**2)
+        mult = 1
+    if np.allclose(-np.sqrt(1-r[0]**2-r[1]**2), r[2]):
+        #z = -np.sqrt(1-x**2-y**2)
+        mult = -1
+    z = mult*np.sqrt(1-x**2-y**2)
+    if np.any(np.isnan(z)):
+        print('NaN detected')
+        nans = np.isnan(z)
+        nan_idxs = np.argwhere(nans)
+        if nans[0] and nans[-1]:
+            '''print('NaNs loop around the y range')
+            diff = nan_idxs-np.roll(nan_idxs, 1)
+            nan_bound = np.argwhere(diff>1)[0, 0]
+            idx_low = nan_idxs[0, 0]-1 # Index before first NaN.
+            print('idx_low: ', idx_low)
+            idx_high = (nan_idxs[-1, 0]+1)%(y_n*2) # Index after last NaN.
+            print('idx_high: ', idx_high)'''
+            print('NaNs loop around the y range')
+            jumps = np.argwhere(np.logical_xor(nans, np.roll(nans, 1))) # Indices of the first bool after switching True<->False.
+            print(jumps)
+            idx_low = jumps[0, 0]-1
+            idx_high = jumps[1, 0]
+        else:            
+            idx_low = nan_idxs[0, 0]-1 # Index before first NaN.
+            idx_high = (nan_idxs[-1, 0]+1)%(y_n*2) # Index after last NaN.
+            print('idx_low: ', idx_low)
+            print('idx_high: ', idx_high)
+        x = x-x[idx_low] # Translating all x values s.t. last non-NaN lines at x=0.
+        y = y-y[idx_low] # Translating all y values s.t. last non-NaN lines at y=0.
+        reflection_vec = np.array([-y[idx_high], x[idx_high]]) # Vector to reflect through.
+        reflection_mat = np.identity(2)-2*np.outer(reflection_vec, reflection_vec)/np.inner(reflection_vec, reflection_vec)
+        for _, idx in enumerate(nan_idxs):
+            vec = np.array([x[idx], y[idx]]) # Vector to reflect.
+            refl = np.matmul(reflection_mat, vec) # Reflection of the vector.
+            x[idx] = refl[0] # Reassigning x of the confidence region.
+            y[idx] = refl[1] # Reassigning y of the confidence region.
+        x = x+x[idx_low] # Translating all x values back to their original coordinate system.
+        y = y+y[idx_low] # Translating all y values back to their original coordinate system.
+        mult *= -1 # Changing the sign of the multiplication factor.
+        for _, idx in enumerate(nan_idxs):
+            z[idx] = mult*np.sqrt(1-x[idx]**2-y[idx]**2)
+    return x, y, z
+
+# Posterior based on an arbitrary number of detectors, using vectors in the eigenbasis.
+def post_eig(r, R, eigvals, eigvecs):
+    R_eigen = eigenmapping(R, eigvecs)
+    r_eigen = eigenmapping(r, eigvecs)
+    R_eigen_sph = cart_to_sph(R_eigen)
+    exponent = 0 # Placeholder value.
+    for i in range(3):
+        exponent += eigvals[i]*(r_eigen[i]-R_eigen[i])**2
+    exponent *= -1/2
+    return np.exp(exponent)*np.sin(R_eigen_sph[1])/(4*np.pi)
+
+# Function-ify the confidence region calculation.
+def confidence_region(r, M, p=0.9, y_num=1000, cart=False):
+    P = np.identity(3)-np.outer(r, r) # Projection matrix perpendicular to r.
+    M_r = np.matmul(np.matmul(P, M), P) # M projected onto the perpendicular to r.
+    eigvals, eigvecs = np.linalg.eig(M_r)
+    degen = np.argmin(np.abs(eigvals)) # Finding the degenerate eigenvalue/eigendirection.
+    # By choice, we want the degenerate direction to be associated with the z-direction.
+    if degen!= 2: # Checking whether the degenerate direction is the z-direction.
+        eigvals[[degen, 2]] = eigvals[[2, degen]] # Swapping the degenerate eigenvalue to the z-direction.
+        eigvecs[:, [degen, 2]] = eigvecs[:, [2, degen]] # Swapping the degenerate eigenvalue to the z-direction.
+    degen = np.argmin(np.abs(eigvals)) # Resaving the degenerate eigendirection.
+    eigvals_nd = np.delete(eigvals, degen) # Only the nondegenerate eigenvalues.
+    eigvecs_nd = np.delete(eigvecs, degen, axis=1) # Only the nondegenerate eigenvectors.
+
+    # Mapping to eigenvector basis.
+    mapping = np.linalg.inv(eigvecs) # Mapping matrix.
+    r_eig = np.matmul(mapping, r) # Mapping.
+    
+    # Take i=0->x, i=1->y.
+    sigmax = 1/np.sqrt(eigvals_nd[0]) # Measurement uncertainty in the x-direction.
+    sigmay = 1/np.sqrt(eigvals_nd[1]) # Measurement uncertainty in the y-direction.
+    y = np.linspace(-sigmay*np.sqrt(-2*np.log(1-p))+r_eig[1], sigmay*np.sqrt(-2*np.log(1-p))+r_eig[1], y_num) # Defining the y-range
+    x = sigmax*np.sqrt(-2*np.log(1-p)-(y-r_eig[1])**2*sigmay**-2)+r_eig[0] # Calculating the upper half of the confidence region.
+    y_rev = np.flip(y) # Reversing the y-range to ensure a continuous plot.
+    x_rev = -sigmax*np.sqrt(-2*np.log(1-p)-(y_rev-r_eig[1])**2*sigmay**-2)+r_eig[0] # Calculating the lower half of the confidence region.
+    y = np.append(y, y_rev) # Connecting the two halves of the y-values.
+    x = np.append(x, x_rev) # Connecting the two halves of the x-values.
+    # Checking whether the z-values are to be above or below the x-y plane.
+    if np.allclose(r_eig[degen], np.sqrt(1-r_eig[0]**2-r_eig[1]**2)): # Above the x-y plane.
+        mult = 1
+    if np.allclose(r_eig[degen], -np.sqrt(1-r_eig[0]**2-r_eig[1]**2)): # Below the x-y plane.
+        mult = -1
+    z = mult*np.sqrt(1-x**2-y**2) # Calculating the z-values.
+
+    r_eig_cr = np.append(np.append(x.reshape(1, x.size), y.reshape(1, y.size), axis=0), z.reshape(1, z.size), axis=0) # Sticking the x, y and z values into one array.
+    r_cr = np.empty(r_eig_cr.shape) # Empty array to hold the confidence region variables in the geocentric basis.
+    # Mapping the confidence region coordinates back to the geocentric basis.
+    for i in range(r_eig_cr.shape[1]):
+        r_cr[:, i] = np.matmul(eigvecs, r_eig_cr[:, i])
+    
+    # If the cartesian coordinates are wished for, these are returned.
+    if cart:
+        return r_cr
+    # If the spherical coordinates are wished for, these are calculated and returned.
+    else:
+        r_cr_sph = np.empty(r_cr.shape) # Empty array to hold the confidence region variables in spherical coordinates.
+        for i in range(r_cr.shape[1]):
+            r_cr_sph[:, i] = cart_to_sph(r_cr[:, i])
+        return r_cr_sph
+
+def area(r, M, p):
+    P = np.identity(3)-np.outer(r, r) # Projection matrix perpendicular to r.
+    M_r = np.matmul(np.matmul(P, M), P) # M projected onto the perpendicular to r.
+    eigvals, eigvecs = np.linalg.eig(M_r)
+    degen = np.argmin(np.abs(eigvals)) # Finding the degenerate eigenvalue/eigendirection.
+    # By choice, we want the degenerate direction to be associated with the z-direction.
+    if degen!= 2: # Checking whether the degenerate direction is the z-direction.
+        eigvals[[degen, 2]] = eigvals[[2, degen]] # Swapping the degenerate eigenvalue to the z-direction.
+        eigvecs[:, [degen, 2]] = eigvecs[:, [2, degen]] # Swapping the degenerate eigenvalue to the z-direction.
+    degen = np.argmin(np.abs(eigvals)) # Resaving the degenerate eigendirection.
+    eigvals_nondegen = np.delete(eigvals, degen) # Discards the degenerate eigenvalue.
+    axes = 1/np.sqrt(eigvals_nondegen) # Converts the eigenvalues to uncertainties.
+    
+    # Implementing a test to determine whether localisation works out.
+    r_eig = np.matmul(np.linalg.inv(eigvecs), r)
+    x_test_low = axes[0]<=(1+r_eig[0])/np.sqrt(-2*np.log(1-p))
+    x_test_up = axes[0]<=(1-r_eig[0])/np.sqrt(-2*np.log(1-p))
+    y_test_low = axes[1]<=(1+r_eig[1])/np.sqrt(-2*np.log(1-p))
+    y_test_up = axes[1]<=(1-r_eig[1])/np.sqrt(-2*np.log(1-p))
+    if x_test_low and x_test_up and y_test_low and y_test_up:
+        area_2d = -2.*np.pi*axes[0]*axes[1]*np.log(1.-p) # Area on the unit circle.
+        costheta = np.abs(np.dot(r, eigvecs[:, degen]))/(np.linalg.norm(r)*np.linalg.norm(eigvecs[:, degen])) # Angle between source direction and normal to the plane
+        area_3d = area_2d/costheta # Area on the unit sphere in steradians.
+        return area_3d*(180/np.pi)**2 # Returns area in square degrees.
+    else:
+        return np.nan
 
 def redshift_from_luminosity_distance(DL, cosmos=Planck18, z_max=20):
     """

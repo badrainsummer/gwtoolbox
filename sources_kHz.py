@@ -1,3 +1,7 @@
+# Try to modify the BHB object to support networks.
+# Changes are marked in comments.
+#from multiprocessing import set_start_method
+#set_start_method("spawn")
 import numpy as np
 from scipy.stats import truncnorm
 from astropy import units as u
@@ -9,8 +13,18 @@ from gwtoolbox.parameters import *
 from gwtoolbox.functions_earth import *
 import os.path
 #import time
-my_path = os.path.abspath(os.path.dirname(__file__))
+my_path = os.path.abspath(os.path.dirname(__file__)) # This line acts up.
+
+# Getting mypath to work requires some intermediate steps due to being in a different folder and using a notebook
+#cwd = os.getcwd()
+#code_dir = os.path.abspath(os.path.dirname(cwd))
+#my_path = os.path.join(code_dir, "radboudradiolab-gwtoolbox-1a1476dae2b0/radboudradiolab-gwtoolbox-1a1476dae2b0/gwtoolbox")
 path_angle = os.path.join(my_path, "accessory/angles.dat")
+path_angle_virgo = os.path.join(my_path, "accessory/angles_virgo.dat") # Added for network implementation.
+path_angle_hanford = os.path.join(my_path, "accessory/angles_hanford.dat") # Added for network implementation.
+path_angle_livingston = os.path.join(my_path, "accessory/angles_livingston.dat") # Added for network implementation.
+path_angle_kagra = os.path.join(my_path, "accessory/angles_kagra.dat") # Added for network implementation.
+path_angle_ET = os.path.join(my_path, "accessory/angles_et.dat") # Added for network implementation.
 path_IS_et=os.path.join(my_path,"accessory/for_integral_et_BBH.txt")
 path_IS_ligo=os.path.join(my_path, "accessory/for_integral_ligo_BBH.txt")
 path_IS_med=os.path.join(my_path, "accessory/for_integral_med_BBH.txt")
@@ -32,6 +46,36 @@ varphi_array = random_angles[:,1]
 iota_array = random_angles[:,2]
 psi_array = random_angles[:,3]
 
+# Added for network implementation.
+random_angles_virgo=np.loadtxt(path_angle_virgo)
+theta_array_virgo = random_angles_virgo[:,0]
+varphi_array_virgo = random_angles_virgo[:,1]
+iota_array_virgo = random_angles_virgo[:,2]
+psi_array_virgo = random_angles_virgo[:,3]
+
+random_angles_hanford=np.loadtxt(path_angle_hanford)
+theta_array_hanford = random_angles_hanford[:,0]
+varphi_array_hanford = random_angles_hanford[:,1]
+iota_array_hanford = random_angles_hanford[:,2]
+psi_array_hanford = random_angles_hanford[:,3]
+
+random_angles_livingston=np.loadtxt(path_angle_livingston)
+theta_array_livingston = random_angles_livingston[:,0]
+varphi_array_livingston = random_angles_livingston[:,1]
+iota_array_livingston = random_angles_livingston[:,2]
+psi_array_livingston = random_angles_livingston[:,3]
+
+random_angles_kagra=np.loadtxt(path_angle_kagra)
+theta_array_kagra = random_angles_kagra[:,0]
+varphi_array_kagra = random_angles_kagra[:,1]
+iota_array_kagra = random_angles_kagra[:,2]
+psi_array_kagra = random_angles_kagra[:,3]
+
+random_angles_ET = np.loadtxt(path_angle_ET)
+theta_array_ET = random_angles_ET[:, 0]
+varphi_array_ET = random_angles_ET[:, 1]
+iota_array_ET = random_angles_ET[:, 2]
+psi_array_ET = random_angles_ET[:, 3]
 
 # an isotropic distribution of angles
 para_IS_et=np.loadtxt(path_IS_et)
@@ -93,7 +137,7 @@ class BHB:
       cosmos: define cosmological model
 
     """
-    def __init__(self, cosmos):
+    def __init__(self, cosmos): # No changes needed.
         """
         Parameters:
           cosmos (class): define cosmological model
@@ -105,7 +149,7 @@ class BHB:
         #self.Rm= np.zeros(len(self.zs))
         #self.chi_sigma=0.1
         self.pop='I'
-    def set_model_theta(self, pop, new_theta=None):
+    def set_model_theta(self, pop, new_theta=None): # No changes needed.
         """
         The function to change theta from fiducial to user-defined in cosmic merger rate
 
@@ -180,27 +224,39 @@ class BHB:
         #    self.chi_sigma=0.1
 #           print (R(0.1, 2.7, 5.6, 2.9, tau, self.cosmos))
 #           print ('shape of Rm is: %d; while the shape of zs is: %d' % (len(self.Rm),len(self.zs)))
-    def mod_norm(self, Mch, F, iota, z):
+    def mod_norm(self, Mch, F, iota, z, network=False): # Changes/Alternative needed.
         """
         The normalization constant of the modulus of the GW waveform from stellar-mass binary black holes (BHB) mergers in frequency domain.
 
-        Parameters:R0, tau, self.loc, self.scal,self.low,self.high, self.chi_sigma = self.the
+        Parameters:
           Mch (1-D ArrayLike floats):  Red-shifted chirp mass of the BHB in solar masses
           F (array of dtype float): The Antenna Patterns of the observatory
           iota (Array of floatsfloat): The inclination of the BHB orbit
           z (float): The redshift of the GW source
+          network (bool): whether a network is used.
 
         Returns:
           (float): The normalization of the GW strain
         """
         C = CONST_AMPLITUDE_GW*Mch**(5./6.)/self.cosmos.luminosity_distance(z).to_value(u.Gpc)
-        scaling_factor = np.sqrt(((1.+np.cos(iota)**2)/2.)**2*F[0]**2+np.cos(iota)**2*F[1]**2)
-        if np.isscalar(Mch)==True:
-            return C*scaling_factor
-        else:
-            return np.einsum('i,j->ij',C,scaling_factor)
+        if not network:
+            scaling_factor = np.sqrt(((1.+np.cos(iota)**2)/2.)**2*F[0]**2+np.cos(iota)**2*F[1]**2)
+            if np.isscalar(Mch)==True:
+                return C*scaling_factor
+            else:
+                return np.einsum('i,j->ij',C,scaling_factor)
+        if network:
+            scaling_factor = [] # List to hold individual detector scaling factors.
+            result = [] # List to hold individual detector returns.
+            for i, f in enumerate(F):
+                scaling_factor.append(np.sqrt(((1.+np.cos(iota)**2)/2.)**2*f[0]**2+np.cos(iota)**2*f[1]**2))
+                if np.isscalar(Mch):
+                    result.append(C*scaling_factor[i])
+                else:
+                    result.append(np.einsum('i,j->ij',C,scaling_factor[i]))
+            return result
 
-    def mod_shape(self, f):
+    def mod_shape(self, f): # No changes needed.
         """
         The frequency dependence of the modulus of the GW waveform of BHB mergers.
 
@@ -211,17 +267,17 @@ class BHB:
           (float or array of dtype float): The modulus of the waveform corresponds to each frequency in f
         """
         return f**(-7./6.)
-    def mod_shape_merger(self, f):
+    def mod_shape_merger(self, f): # No changes needed.
         # the shape of waveform in merger stage, it should be glue to the inspiral waveform.
         return f**(-2./3.)
-    def mod_shape_ringdown(self, f, f2, sigma):
+    def mod_shape_ringdown(self, f, f2, sigma): # No changes needed.
         if np.isscalar(f2):
             return 1./np.pi*0.5*sigma/((f-f2)**2+(0.5*sigma)**2)
         else:
         # the return should be dim(f2)*dim(f) dimensional matrix #29 Oct. 2021, by yishuxu
     	    return 1./np.pi*0.5*np.einsum('i,j->ij',sigma,np.ones(len(f)))/((np.einsum('i,j->ij',np.ones(len(f2)),f)-np.einsum('i,j->ij',f2,np.ones(len(f))))**2+(0.5*np.einsum('i,j->ij',sigma,np.ones(len(f))))**2)
 
-    def etachi(self, eta, chi):
+    def etachi(self, eta, chi): # No changes needed.
         """
         accept 1-D arrayLike eta and chi, but they must be the same length
         return an array of 3*3 np.array, the outer length is len(eta)
@@ -231,7 +287,7 @@ class BHB:
         return np.einsum('i...,j...->...ij', B,A)
         #return np.array([[eta**i*chi**j for i in range(0,3)] for j in range(0,3)])
 
-    def freq_limit_old(self, m1, m2, chi):
+    def freq_limit_old(self, m1, m2, chi): # No changes needed.
         """
         accept 1-D arrayLike m1,m2,chi, they shoule be in the same length.
         """
@@ -249,7 +305,7 @@ class BHB:
         result=sum_freq+np.einsum('ij,...ji',y,a)
         return result*c**3/(GM_sun*M*np.pi) #[Hz]
 
-    def freq_limit(self, m1, m2, chi):
+    def freq_limit(self, m1, m2, chi): # No changes needed.
         """
         The frequency upper limit of the waveform (in insprial phase: shuxu, 29th Sep. 2021).
 
@@ -277,7 +333,7 @@ class BHB:
                 sum_freq += y[(i,j)]*eta**i*chi**j
         return c**3/(GM_sun*M*np.pi)*sum_freq # unit [Hz]
 
-    def freq_limit_merger(self, m1, m2, chi):
+    def freq_limit_merger(self, m1, m2, chi): # No changes needed.
         """
         The frequency upper limit of the waveform in merger stage, added by shuxu, 29th Sep. 2021
 
@@ -304,7 +360,7 @@ class BHB:
             for j in range(0,N+1):  ### N -> N+1
                 sum_freq += y[(i,j)]*eta**i*chi**j
         return c**3/(GM_sun*M*np.pi)*sum_freq # unit [Hz]
-    def freq_limit_ringdown(self, m1, m2, chi):
+    def freq_limit_ringdown(self, m1, m2, chi): # No changes needed.
         """
         The frequency upper limit of the waveform in ringdown stage, added by shuxu, 29th Sep. 2021
 
@@ -331,7 +387,8 @@ class BHB:
             for j in range(0,N+1):  ### N -> N+1
                 sum_freq += y[(i,j)]*eta**i*chi**j
         return c**3/(GM_sun*M*np.pi)*sum_freq # unit [Hz]
-    def freq_sigma(self, m1, m2, chi):
+
+    def freq_sigma(self, m1, m2, chi): # No changes needed.
         """
         The frequency span of the waveform in ringdown stage, added by shuxu, 29th Sep. 2021
 
@@ -358,7 +415,268 @@ class BHB:
             for j in range(0,N+1):  ### N -> N+1
                 sum_freq += y[(i,j)]*eta**i*chi**j
         return c**3/(GM_sun*M*np.pi)*sum_freq # unit [Hz]
-    def phase(self,f, m1, m2, chi, t0, phi0):
+
+    def frequency_sigma_sq_1(self, noise_tab, mod_shape, f_up=None):
+        """
+        Calculating frequency band.
+
+        Parameters:
+          noise_tab (array of dtype float): The noise power spectrum
+          mod_shape (function): The (normalized) shape of modulus of waveform
+          f_up (Optional[1-D ArrayLike float]): the upper limit of frequency
+
+
+        Returns:
+          (1-D ArrayLike float): frequency sq
+        """
+        freq = noise_tab[0]
+        # all frequency in the noise_tab curve
+        nois = noise_tab[1]
+        temp = np.diff(freq)
+        if  len(temp)>0:
+            freq_steps = np.append(temp,temp[-1])
+        # to make the length of freq_step the same as freq_cut.
+            #hsq0 = self.mod_shape(freq) ** 2
+            hsq1 = mod_shape(freq)*freq**2*mod_shape(freq)
+            #hsq2 = self.mod_shape(freq)**2*freq
+           # """
+            if np.isscalar(f_up)==True:
+                #hsq0=np.where(freq<f_up,hsq0,0)
+                hsq1=np.where(freq<f_up,hsq1,0)
+                #hsq2=np.where(freq<f_up,hsq2,0)
+                return np.sum(hsq1/nois*freq_steps)
+                #return np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2
+            elif np.array(f_up).any()!=None:
+                #hsq0=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f_up)),freq),np.einsum('i,j->ij',f_up,np.ones(len(freq)))),hsq0,0)
+                hsq1=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f_up)),freq),np.einsum('i,j->ij',f_up,np.ones(len(freq)))),hsq1,0)
+                #hsq2=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f_up)),freq),np.einsum('i,j->ij',f_up,np.ones(len(freq)))),hsq2,0)
+                #return np.sum(hsq1/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1)-(np.sum(hsq2/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1))**2
+                #if np.sum(hsq0/nois*freq_steps)>0:
+                    #return np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2
+                return np.sum(hsq1/nois*freq_steps,axis=1)
+            else:
+                return np.sum(hsq1/nois*freq_steps)
+                 #return np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2
+        else:
+            return 0
+    def frequency_sigma_sq_2(self, noise_tab, mod_shape, f_up=None):
+        """
+        Calculating frequency band.
+
+        Parameters:
+          noise_tab (array of dtype float): The noise power spectrum
+          mod_shape (function): The (normalized) shape of modulus of waveform
+          f_up (Optional[1-D ArrayLike float]): the upper limit of frequency
+
+
+        Returns:
+          (1-D ArrayLike float): frequency sq
+        """
+        freq = noise_tab[0]
+        # all frequency in the noise_tab curve
+        nois = noise_tab[1]
+        temp = np.diff(freq)
+        if  len(temp)>0:
+            freq_steps = np.append(temp,temp[-1])
+        # to make the length of freq_step the same as freq_cut.
+            #hsq0 = self.mod_shape(freq) ** 2
+            #hsq1 = (self.mod_shape(freq)*freq)**2
+            hsq2 = mod_shape(freq)*freq*mod_shape(freq)
+           # """
+            if np.isscalar(f_up)==True:
+                #hsq0=np.where(freq<f_up,hsq0,0)
+                #hsq1=np.where(freq<f_up,hsq1,0)
+                hsq2=np.where(freq<f_up,hsq2,0)
+                return np.sum(hsq2/nois*freq_steps)
+                #return np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2
+            elif np.array(f_up).any()!=None:
+                #hsq0=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f_up)),freq),np.einsum('i,j->ij',f_up,np.ones(len(freq)))),hsq0,0)
+                #hsq1=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f_up)),freq),np.einsum('i,j->ij',f_up,np.ones(len(freq)))),hsq1,0)
+                hsq2=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f_up)),freq),np.einsum('i,j->ij',f_up,np.ones(len(freq)))),hsq2,0)
+                #return np.sum(hsq1/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1)-(np.sum(hsq2/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1))**2
+                #if np.sum(hsq0/nois*freq_steps)>0:
+                    #return np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2
+                return np.sum(hsq2/nois*freq_steps,axis=1)
+            else:
+                return np.sum(hsq2/nois*freq_steps)
+                 #return np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2
+        else:
+            return 0
+
+    def frequency_sigma_sq_merger_1(self, noise_tab, mod_shape, f1, f2):
+        """
+        Calculating frequency band.
+
+        Parameters:
+        noise_tab (array of dtype float): The noise power spectrum
+        mod_shape (function): The (normalized) shape of modulus of waveform
+        f_up (Optional[1-D ArrayLike float]): the upper limit of frequency
+
+
+        Returns:
+        (1-D ArrayLike float): rho sq
+        """
+        freq = noise_tab[0]
+        # all frequency in the noise_tab curve
+        nois = noise_tab[1]
+        temp = np.diff(freq)
+        if  len(temp)>0:
+            freq_steps = np.append(temp,temp[-1])
+        # to make the length of freq_step the same as freq_cut
+            hsq1 = mod_shape(freq)*freq**2*mod_shape(freq)
+            #hsq2 = mod_shape(freq)**2*freq
+            if np.isscalar(f1)==True:
+                hsq1=np.where(f1<freq,hsq1,0)*np.where(f2>freq,1,0)
+                #hsq2=np.where(f1<freq,hsq2,0)*np.where(f2>freq,1,0)
+                return np.sum(hsq1/nois*freq_steps)*f1**(-1)
+                    #return (np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2)*f1**(-1)
+            elif np.array(f1).any()!=None:
+                hsq1_1=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f1)),freq),np.einsum('i,j->ij',f2,np.ones(len(freq)))),hsq1,0)
+                hsq1_2=np.where(np.greater(np.einsum('i,j->ij',np.ones(len(f1)),freq),np.einsum('i,j->ij',f1,np.ones(len(freq)))),1,0)
+                #hsq2_1=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f1)),freq),np.einsum('i,j->ij',f2,np.ones(len(freq)))),hsq2,0)
+                #hsq2_2=np.where(np.greater(np.einsum('i,j->ij',np.ones(len(f1)),freq),np.einsum('i,j->ij',f1,np.ones(len(freq)))),1,0)
+                hsq1=hsq1_1*hsq1_2
+                #hsq2=hsq2_1*hsq2_2
+                #if np.sum(hsq0/nois*freq_steps)>0:
+                    #return (np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2)*f1**(-1)
+                    #return np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2
+                return np.sum(hsq1/nois*freq_steps,axis=1)*f1**(-1)
+                #return np.sum(hsq1/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1)-(np.sum(hsq2/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1))**2
+            else:
+                return np.sum(hsq1/nois*freq_steps)*f1**(-1)
+
+               # return (np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2)*f1**(-1)
+        else:
+            return 0
+
+    def frequency_sigma_sq_merger_2(self, noise_tab, mod_shape, f1, f2):
+        """
+        Calculating frequency band.
+
+        Parameters:
+        noise_tab (array of dtype float): The noise power spectrum
+        mod_shape (function): The (normalized) shape of modulus of waveform
+        f_up (Optional[1-D ArrayLike float]): the upper limit of frequency
+
+
+        Returns:
+        (1-D ArrayLike float): rho sq
+        """
+        freq = noise_tab[0]
+        # all frequency in the noise_tab curve
+        nois = noise_tab[1]
+        temp = np.diff(freq)
+        if  len(temp)>0:
+            freq_steps = np.append(temp,temp[-1])
+        # to make the length of freq_step the same as freq_cut
+            hsq2 = mod_shape(freq)*freq*mod_shape(freq)
+            if np.isscalar(f1)==True:
+                hsq2=np.where(f1<freq,hsq2,0)*np.where(f2>freq,1,0)
+                return np.sum(hsq2/nois*freq_steps)*f1**(-1)
+                    #return (np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2)*f1**(-1)
+            elif np.array(f1).any()!=None:
+                hsq2_1=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f1)),freq),np.einsum('i,j->ij',f2,np.ones(len(freq)))),hsq2,0)
+                hsq2_2=np.where(np.greater(np.einsum('i,j->ij',np.ones(len(f1)),freq),np.einsum('i,j->ij',f1,np.ones(len(freq)))),1,0)
+                #hsq1=hsq1_1*hsq1_2
+                hsq2=hsq2_1*hsq2_2
+                return np.sum(hsq2/nois*freq_steps,axis=1)*f1**(-1)
+            else:
+                return np.sum(hsq2/nois*freq_steps)*f1**(-1)
+
+               # return (np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2)*f1**(-1)
+        else:
+            return 0
+
+    def frequency_sigma_sq_ringdown_1(self, noise_tab, mod_shape,f1, f2, freq_sig, f3):
+        """
+        Calculating rho sq from the merger stage.
+
+        Parameters:
+        noise_tab (array of dtype float): The noise power spectrum
+        mod_shape (function): The (normalized) shape of modulus of waveform
+        f_2,3 (Optional[1-D ArrayLike float]): the lower and upper frequency limits of the ringdown waveform.
+        freq_sig, frequency width of the Lorentz function.
+
+        Returns:
+        (1-D ArrayLike float): rho sq
+        """
+        freq = noise_tab[0]
+        # all frequency in the noise_tab curve
+        nois = noise_tab[1]
+    #    # all noise power in the frequency range
+        temp = np.diff(freq)
+        wr=f1**-0.5*f2**-0.66667*freq_sig*np.pi*0.5
+        if  len(temp)>0:
+            freq_steps = np.append(temp,temp[-1])
+        # to make the length of freq_step the same as freq_cut.
+            #hsq = mod_shape(freq,f2,freq_sig)**2
+            hsq1 = mod_shape(freq,f2,freq_sig)*freq**2*mod_shape(freq,f2,freq_sig)
+            #hsq2 = mod_shape(freq,f2,freq_sig)**2*freq
+            if np.isscalar(f2)==True:
+               #hsq=np.where(f2<freq,hsq,0)*np.where(f3>freq,1,0)
+                hsq1=np.where(f2<freq,hsq1,0)*np.where(f3>freq,1,0)
+                #hsq2=np.where(f2<freq,hsq2,0)*np.where(f3>freq,1,0)
+                return np.sum(hsq1/nois*freq_steps)*wr**2
+                #return np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2
+            elif np.array(f2).any()!=None:
+                hsq1_1=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f2)),freq),np.einsum('i,j->ij',f3,np.ones(len(freq)))),hsq1,0)
+                hsq1_2=np.where(np.greater(np.einsum('i,j->ij',np.ones(len(f2)),freq),np.einsum('i,j->ij',f2,np.ones(len(freq)))),1,0)
+                #hsq2_1=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f2)),freq),np.einsum('i,j->ij',f3,np.ones(len(freq)))),hsq2,0)
+                #hsq2_2=np.where(np.greater(np.einsum('i,j->ij',np.ones(len(f2)),freq),np.einsum('i,j->ij',f2,np.ones(len(freq)))),1,0)
+                hsq1=hsq1_1*hsq1_2
+                #hsq2=hsq2_1*hsq2_2
+                return np.sum(hsq1/nois*freq_steps,axis=1)*wr**2
+                #return np.sum(hsq1/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1)-(np.sum(hsq2/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1))**2
+            else:
+                return np.sum(hsq1/nois*freq_steps)*wr**2
+        else:
+            return 0
+    def frequency_sigma_sq_ringdown_2(self, noise_tab, mod_shape,f1, f2, freq_sig, f3):
+        """
+        Calculating rho sq from the merger stage.
+
+        Parameters:
+        noise_tab (array of dtype float): The noise power spectrum
+        mod_shape (function): The (normalized) shape of modulus of waveform
+        f_2,3 (Optional[1-D ArrayLike float]): the lower and upper frequency limits of the ringdown waveform.
+        freq_sig, frequency width of the Lorentz function.
+
+        Returns:
+        (1-D ArrayLike float): rho sq
+        """
+        freq = noise_tab[0]
+        # all frequency in the noise_tab curve
+        nois = noise_tab[1]
+    #    # all noise power in the frequency range
+        temp = np.diff(freq)
+        wr=f1**-0.5*f2**-0.66667*freq_sig*np.pi*0.5
+        if  len(temp)>0:
+            freq_steps = np.append(temp,temp[-1])
+        # to make the length of freq_step the same as freq_cut
+            #hsq1 = (mod_shape(freq,f2,freq_sig)*freq)**2
+            hsq2 = mod_shape(freq,f2,freq_sig)*freq*mod_shape(freq,f2,freq_sig)
+            if np.isscalar(f2)==True:
+               #hsq=np.where(f2<freq,hsq,0)*np.where(f3>freq,1,0)
+                #hsq1=np.where(f2<freq,hsq1,0)*np.where(f3>freq,1,0)
+                hsq2=np.where(f2<freq,hsq2,0)*np.where(f3>freq,1,0)
+                return np.sum(hsq2/nois*freq_steps)*wr**2
+                #return np.sum(hsq1/nois*freq_steps)/np.sum(hsq0/nois*freq_steps)-(np.sum(hsq2/nois*freq_steps)/np.sum(hsq0/nois*freq_steps))**2
+            elif np.array(f2).any()!=None:
+                #hsq1_1=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f2)),freq),np.einsum('i,j->ij',f3,np.ones(len(freq)))),hsq1,0)
+                #hsq1_2=np.where(np.greater(np.einsum('i,j->ij',np.ones(len(f2)),freq),np.einsum('i,j->ij',f2,np.ones(len(freq)))),1,0)
+                hsq2_1=np.where(np.less(np.einsum('i,j->ij',np.ones(len(f2)),freq),np.einsum('i,j->ij',f3,np.ones(len(freq)))),hsq2,0)
+                hsq2_2=np.where(np.greater(np.einsum('i,j->ij',np.ones(len(f2)),freq),np.einsum('i,j->ij',f2,np.ones(len(freq)))),1,0)
+                #hsq1=hsq1_1*hsq1_2
+                hsq2=hsq2_1*hsq2_2
+                return np.sum(hsq2/nois*freq_steps,axis=1)*wr**2
+                #return np.sum(hsq1/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1)-(np.sum(hsq2/nois*freq_steps,axis=1)/np.sum(hsq0/nois*freq_steps,axis=1))**2
+            else:
+                return np.sum(hsq2/nois*freq_steps)*wr**2
+        else:
+            return 0
+
+
+    def phase(self,f, m1, m2, chi, t0, phi0): # No changes needed, I think.
     #
     #        The phase of the waveform of the stellar-mass BHB mergers in the frequency domain.
     #
@@ -416,7 +734,7 @@ class BHB:
         result=1.+np.einsum('i,i...',Temp,b)
         return 2.*np.pi*f*t0+phi0+3./128./eta/v**5*result
 
-    def phase_old(self, f, m1, m2, chi, t0, phi0):
+    def phase_old(self, f, m1, m2, chi, t0, phi0): # No changes needed, I think
 #
 #        The phase of the waveform of the stellar-mass BHB mergers in the frequency domain.
 #
@@ -459,7 +777,7 @@ class BHB:
         x[(2,0,6)] = 5.981e6
         x[(2,1,6)] = -1.415e6
         x[(3,0,6)] = -1.128e7
-        x[(1,0,7)] = 8.696e5 
+        x[(1,0,7)] = 8.696e5
         x[(1,1,7)] = -6.71e5
         x[(1,2,7)] = -3.008e4
         x[(2,0,7)] = -5.838e6
@@ -477,7 +795,7 @@ class BHB:
             result += sum_psi*v**k
         return 2.*np.pi*f*t0+phi0+3./128./eta/v**5*result
 
-    def partial(self, A, m1, m2, chi, t0, phi0):
+    def partial(self, A, m1, m2, chi, t0, phi0):  # No changes needed, I think. Could very well be wrong though.
         """
         The matrix of partial derivatives of waveform as function of f
 
@@ -509,14 +827,138 @@ class BHB:
         mat_part=lambda f: np.einsum('i...,j...->ij...',list_partial(f),list_partial(f))*self.mod_shape(f)**2*A**2
         #mat_part=lambda f: np.tensordot(list_partial(f),list_partial(f),axes=0)*self.mod_shape(f)**2*A**2
         #PartMat = np.zeros((5,5))
-        #PartMat[(0,0)]=lambda f:1R0, tau, self.loc, self.scal,self.low,self.high, self.chi_sigma = self.the
+        #PartMat[(0,0)]=lambda f:1
         #for i in range(1,5):
         #    for j in range(i,5):
         #        PartMat[(i,j)]=lambda f: list[i]*list[j]*A**2
         #return lambda f,i,j:list_partial[i](f)*list_partial[j](f)*self.mod_shape(f)**2*A**2
         return mat_part
 
-    def cos_mer_rate(self, z, m1, m2):
+    def SNR(self, z, Mch, theta, varphi, iota, psi, ant_fun, name, noise_tab):
+        #calculate the signal to noise ratio for HL network for background model
+        #eta=1
+        m1 = Mch*2.0**0.2
+        m2 = m1
+        F = []
+        A_array = []
+        for i, ant in enumerate(ant_fun):
+            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, name=name[i])
+            F.append(ant(theta_new, varphi_new, psi_new))
+            #F.append(ant[1](transform_angles(theta, varphi, psi, name=ant[0])[0], transform_angles(theta=theta, varphi=varphi, psi=psi, name=ant[0])[1], transform_angles(theta=theta, varphi=varphi, psi=psi, name=ant[0])[2]))
+            A_array.append(self.mod_norm(Mch*(1+z), F[i], iota, z))
+
+        f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f1=f_up
+        rho_sq_core_value = []
+        for i, noise in enumerate(noise_tab):
+            #merger and ringdown not effect rho_sq
+            rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))
+            #rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up))
+        rho_sq_array=[]
+        for i, rho_sq in enumerate(rho_sq_core_value):
+            rho_sq_array.append(np.array(4.*A_array[i]**2*rho_sq))
+        rho_sq_network_array = 0 # Numpy array to hold the network SNR^2 values.
+        for i, rho_sq in enumerate(rho_sq_array):
+            rho_sq_network_array += rho_sq
+        return np.sqrt(rho_sq_network_array)
+
+
+    def snr(self, z, m1, m2, theta, varphi, iota, psi, ant_fun, name, noise_tab):
+        #calculate the signal to noise ratio for HL network for background model
+        #eta=1
+        Mch = (m1*m2)**(0.6)/(m1+m2)**(0.2)
+        F = []
+        A_array = []
+        for i, ant in enumerate(ant_fun):
+            #F.append(ant[1](transform_angles(theta, varphi, psi, name=ant[0])[0], transform_angles(theta=theta, varphi=varphi, psi=psi, name=ant[0])[1], transform_angles(theta=theta, varphi=varphi, psi=psi, name=ant[0])[2]))
+            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, name=name[i])
+            F.append(ant(theta_new, varphi_new, psi_new))
+            #F.append(ant(theta, varphi, psi))
+            A_array.append(self.mod_norm(Mch*(1+z), F[i], iota, z))
+
+        f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f1=f_up
+        rho_sq_core_value = []
+        for i, noise in enumerate(noise_tab):
+            #merger and ringdown not effect rho_sq
+            rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))
+            #rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up))
+        rho_sq_array=[]
+        for i, rho_sq in enumerate(rho_sq_core_value):
+            rho_sq_array.append(np.array(4.*A_array[i]**2*rho_sq))
+        rho_sq_network_array = 0 # Numpy array to hold the network SNR^2 values.
+        for i, rho_sq in enumerate(rho_sq_array):
+            rho_sq_network_array += rho_sq
+        return np.sqrt(rho_sq_network_array)
+
+    def area_snr(self, z, m1, m2, theta, varphi, psi, iota, ant_fun, noise_tab, name):
+        r_dets=[]
+        theta_det=[]
+        varphi_det=[]
+        psi_det=[]
+        iota_det=[]
+        for i, n in enumerate(name):
+            theta_det.append(transform_angles(theta, varphi, psi, name=n)[0])
+            varphi_det.append(transform_angles(theta, varphi, psi, name=n)[1])
+            psi_det.append(transform_angles(theta, varphi, psi, name=n)[2])
+            iota_det.append(iota)
+            if n == 'virgo':
+                r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('Virgo'))))
+            if n == 'hanford':
+                r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LHO_4k'))))
+            if n == 'livingston':
+                r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LLO_4k'))))
+            if n == 'kagra':
+                r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('KAGRA'))))
+        Mch = (m1*m2)**(0.6)/(m1+m2)**(0.2)
+        F = []
+        A_array = []
+        for i, ant in enumerate(ant_fun):
+            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, name=name[i])
+            F.append(ant(theta_new, varphi_new, psi_new))
+            #F.append(ant(theta, varphi, psi))
+            A_array.append(self.mod_norm(Mch*(1+z), F[i], iota, z))
+
+        f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f1=f_up
+        rho_sq_core_value = []
+        frequency_sig = []
+        for i, noise in enumerate(noise_tab):
+            #merger and ringdown not effect rho_sq
+            rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))
+            frequency_sig.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=f_up)+self.frequency_sigma_sq_merger_1(noise, self.mod_shape_merger, f1=f1, f2=f2)+self.frequency_sigma_sq_ringdown_1(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))-((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=f_up)+self.frequency_sigma_sq_merger_2(noise, self.mod_shape_merger, f1=f1, f2=f2)+self.frequency_sigma_sq_ringdown_2(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)))**2)
+            #rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up))
+        rho_sq_array=[]
+        for i, rho_sq in enumerate(rho_sq_core_value):
+            rho_sq_array.append(np.array(4.*A_array[i]**2*rho_sq))
+        #for i, freq_sig2 in enumerate(frequency_sig):
+        #    freq_sigma2.append(np.diagonal(freq_sig2[:, the_index]))
+        #areas = np.empty(m1.size) # Array to hold the areas.
+        sigma_t = [] # Array to hold the time errors. For use in area calculation.
+        rho_sq_network_array = 0 # Numpy array to hold the network SNR^2 values.
+        for i, rho_sq in enumerate(rho_sq_array):
+            rho_sq_network_array += rho_sq
+        snr=np.sqrt(rho_sq_network_array)
+        for i, rho2 in enumerate(rho_sq_array):
+            sigma_t.append(sig_t(np.sqrt(rho2), np.sqrt(frequency_sig[i])))
+        #s = []
+        #for j in range(len(name)):
+        #    s.append(sigma_t[j])
+        M = m(r_dets, sigma_t)
+        r = R_from_theta_phi(theta, varphi)
+        areas = area(r, M, .9)
+        return snr, areas
+
+    def cos_mer_rate(self, z, m1, m2): # No changes needed.
         """
         The fractional cosmic merger rate density of the stellar-mass BHB mergers.
 
@@ -614,12 +1056,12 @@ class BHB:
 #            Jaccobian=1.2*q*(m1*m2)**(-0.4)/(m1+m2)**0.2-m1**(-0.4)*m2**0.6*(1+q)*(m1+m2)**(-1.2)*0.2
 #                #print("q=%f,m1=%f,m2=%f" % (q,m1,m2))
 #            return result*norm*A*p_q*np.abs(Jaccobian)
-            #return p_chiR0, tau, self.loc, self.scal,self.low,self.high, self.chi_sigma = self.the
+            #return p_chi
                 #return norm*A
             # asymmetric (split) Gaussian function.
 
 
-    def tel_fun(self, z, m1, m2, rho_cri, ant_fun, noise_tab, accurate=False, withangles=False):
+    def tel_fun(self, z, m1, m2, rho_cri, ant_fun, noise_tab, accurate=False, name=None, withangles=False): # Changes/Alternative needed!
         """
         The telescope function of Laser Interferometers and kHz sources.
 
@@ -635,136 +1077,349 @@ class BHB:
         Returns:
           (float): The probability of detection
         """
+        network = isinstance(ant_fun, list) # Checks whether we are dealing with a network.
         # both masses should be intrinsic here.
         Mch = chirp_mass(m1,m2)
-        if accurate:
-            path_angle_more=os.path.join(my_path, "accessory/angles_more.dat")
-            random_angles_more=np.loadtxt(path_angle_more)
-            theta_array_more = random_angles_more[:,0]
-            varphi_array_more = random_angles_more[:,1]
-            iota_array_more = random_angles_more[:,2]
-            psi_array_more = random_angles_more[:,3]
-            F = ant_fun(theta_array_more, varphi_array_more, psi_array_more)
-            A_array = self.mod_norm(Mch*(1+z), F, iota_array_more, z)
-        else:
-            F = ant_fun(theta_array, varphi_array, psi_array)
-            A_array = self.mod_norm(Mch*(1+z), F, iota_array, z)
-        if np.isscalar(m1):
-            f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-            f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-            f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-            freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        else :
-            f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
-            f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
-        # the waveform want to eat red-shifted mass.
-            f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
-            freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
-        f1=f_up
-        rho_sq_core_value = rho_sq_core(noise_tab, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise_tab, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise_tab, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)
+        if not network: # Everything after this is as it was for 1 detector.
+            if accurate:
+                path_angle_more=os.path.join(my_path, "accessory/angles_more.dat")
+                random_angles_more=np.loadtxt(path_angle_more)
+                theta_array_more = random_angles_more[:,0]
+                varphi_array_more = random_angles_more[:,1]
+                iota_array_more = random_angles_more[:,2]
+                psi_array_more = random_angles_more[:,3]
+                F = ant_fun(theta_array_more, varphi_array_more, psi_array_more)
+                A_array = self.mod_norm(Mch*(1+z), F, iota_array_more, z)
+            else:
+                F = ant_fun(theta_array, varphi_array, psi_array)
+                A_array = self.mod_norm(Mch*(1+z), F, iota_array, z)
+            if np.isscalar(m1):
+                f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+            else :
+                f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+                f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+            # the waveform want to eat red-shifted mass.
+                f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+                freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+            f1=f_up
+            rho_sq_core_value = rho_sq_core(noise_tab, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise_tab, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise_tab, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)
 
-        #theta_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
-        #varphi_array = np.random.uniform(low=0., high=2.*np.pi, size=length)
-        #iota_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
-        #psi_array = np.random.uniform(low=0., high=2.*np.pi, size=length)
-        # an isotropic distribution of angles
+            #theta_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
+            #varphi_array = np.random.uniform(low=0., high=2.*np.pi, size=length)
+            #iota_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
+            #psi_array = np.random.uniform(low=0., high=2.*np.pi, size=length)
+            # an isotropic distribution of angles
 
-        if len(A_array.shape)==2:
-            # in case of Bayesian inference on population model from GW catalogue
-            # in case of Bayesian inference on population model from GW catalogue
-            rho_sq_array=4.*np.einsum('i...,i->i...',A_array**2,rho_sq_core_value)
-        #rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
-            heav_array = np.heaviside(rho_sq_array-rho_cri**2,0)
-            if withangles==True:
-                #good_indice= np.argwhere(heav_array==1), self.chi_sigma = self.the
-                #print(good_indice)
-                #thechoice=np.random.choice(range(0,len(good_indice))
-                #the_index=good_indice[thechoice][1]
-                #print(the_index)
-                #trans_heav=np.transpose(heav_array) # to randomize the angles
-                #np.random.shuffle(trans_heav)  #
-                #heav_array=np.transpose(trans_heav) #
-                heav_array_fluffy=heav_array+np.random.normal(0,scale=1e-4,size=heav_array.shape) # here is a very smart trick, hope someone will appreciate.
-                the_index=np.argmax(heav_array_fluffy,axis=1)
-                thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
-                thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
-                theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
-                thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
-                therho2=np.diagonal(rho_sq_array[:,the_index])
-                # index_bad=np.argwhere(therho2<rho_cri**2)
-                # # deal with bad rho, it happens when the MCMC gives highly unlikely intrinsic parameters, and heav_array are all zero!
-                # thetheta=np.delete(thetheta,index_bad)
-                # thephi=np.delete(thephi, index_bad)
-                # theiota=np.delete(theiota, index_bad)
-                # thepsi=np.delete(thepsi, index_bad)
-                # therho2=np.delete(therho2, index_bad)
-                #print("my here! debugging")
-                return [np.mean(heav_array,axis=1), thetheta, thephi, theiota, thepsi, therho2]
+            if len(A_array.shape)==2:
+                rho_sq_array=4.*np.einsum('i...,i->i...',A_array**2,rho_sq_core_value)
+                #rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
+                heav_array = np.heaviside(rho_sq_array-rho_cri**2,0)
+                if withangles==True:
+                    heav_array_fluffy=heav_array+np.random.normal(0,scale=1e-4,size=heav_array.shape) # here is a very smart trick, hope someone will appreciate.
+                    the_index=np.argmax(heav_array_fluffy,axis=1)
+                    thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
+                    thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
+                    theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
+                    thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
+                    therho2=np.diagonal(rho_sq_array[:,the_index])
+                    return [np.mean(heav_array,axis=1), thetheta, thephi, theiota, thepsi, therho2]
+                else:
+                    return np.mean(heav_array,axis=1)
             else:
-            #good_indice= np.where(heav_array==1)
-            #np.random.choice(good_indice)
-                return np.mean(heav_array,axis=1)
-            if withangles==True:
-                #good_indice= np.argwhere(heav_array==1), self.chi_sigma = self.the
-                #print(good_indice)
-                #thechoice=np.random.choice(range(0,len(good_indice))
-                #the_index=good_indice[thechoice][1]
-                #print(the_index)
-                #trans_heav=np.transpose(heav_array) # to randomize the angles
-                #np.random.shuffle(trans_heav)  #
-                #heav_array=np.transpose(trans_heav) #
-                heav_array_fluffy=heav_array+np.random.normal(0,scale=1e-4,size=heav_array.shape) # here is a very smart trick, hope someone will appreciate.
-                the_index=np.argmax(heav_array_fluffy,axis=1)
-                thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
-                thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
-                theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
-                thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
-                therho2=np.diagonal(rho_sq_array[:,the_index])
-                # index_bad=np.argwhere(therho2<rho_cri**2)
-                # # deal with bad rho, it happens when the MCMC gives highly unlikely intrinsic parameters, and heav_array are all zero!
-                # thetheta=np.delete(thetheta,index_bad)
-                # thephi=np.delete(thephi, index_bad)
-                # theiota=np.delete(theiota, index_bad)
-                # thepsi=np.delete(thepsi, index_bad)
-                # therho2=np.delete(therho2, index_bad)
-                #print("my here! debugging")
-                return [np.mean(heav_array,axis=1), thetheta, thephi, theiota, thepsi, therho2]
+                rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
+                heav_array = np.heaviside(rho_sq_array-rho_cri**2,0)
+                if withangles==True:
+                    good_indice= np.argwhere(heav_array==1)
+                    the_index=np.random.choice(good_indice)
+                    thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
+                    thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
+                    theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
+                    thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
+                    therho2=rho_sq_array[the_index]
+                    #print("my here! debugging")
+                    return [np.mean(heav_array), thetheta, thephi, theiota, thepsi, therho2]
+                else:
+                    return np.mean(heav_array)
+            #return rho_sq_array
+            
+        if network: # Similar routine but for networks.
+            if accurate: # This has been made iterative
+#                path_angle_more=os.path.join(my_path, "accessory/angles_more.dat")
+#                random_angles_more=np.loadtxt(path_angle_more)
+#                theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+#                varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+#                iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+#                psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                F = [] # Array to hold individual detector antenna functions
+                A_array = [] # Array to hold individual detector amplitudes
+                for i, ant in enumerate(ant_fun):
+                    if name[i]=='virgo':
+                        path_angle_more=os.path.join(my_path, "accessory/angles_virgo_more.dat")
+                        random_angles_more=np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='hanford':
+                        path_angle_more=os.path.join(my_path, "accessory/angles_hanford_more.dat")
+                        random_angles_more=np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='livingston':
+                        path_angle_more=os.path.join(my_path, "accessory/angles_livingston_more.dat")
+                        random_angles_more=np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='kagra':
+                        path_angle_more=os.path.join(my_path, "accessory/angles_kagra_more.dat")
+                        random_angles_more=np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='et':
+                        path_angle_more = os.path.join(my_path, "accessory/angles_et_more.dat")
+                        random_angles_more = np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
             else:
-            #good_indice= np.where(heav_array==1)
-            #np.random.choice(good_indice)
-                return np.mean(heav_array,axis=1)
-        else:
-            # in case of MCMC sample of the GW synthetic catalogue
-            # in case of MCMC sample of the GW synthetic catalogue
-            rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
-            heav_array = np.heaviside(rho_sq_array-rho_cri**2,0)
-            if withangles==True:
-                good_indice= np.argwhere(heav_array==1)
-                the_index=np.random.choice(good_indice)
-                thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
-                thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
-                theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
-                thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
-                therho2=rho_sq_array[the_index]
-                #print("my here! debugging")
-                return [np.mean(heav_array), thetheta, thephi, theiota, thepsi, therho2]
-            else:
-                return np.mean(heav_array)
-            if withangles==True:
-                good_indice= np.argwhere(heav_array==1)
-                the_index=np.random.choice(good_indice)
-                thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
-                thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
-                theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
-                thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
-                therho2=rho_sq_array[the_index]
-                #print("my here! debugging")
-                return [np.mean(heav_array), thetheta, thephi, theiota, thepsi, therho2]
-            else:
-                return np.mean(heav_array)
-        #return rho_sq_array
+                F = [] # Array to hold individual detector antenna functions
+                A_array = [] # Array to hold individual detector amplitudes
+                for i, ant in enumerate(ant_fun):
+                    if name[i]=='virgo':
+                        F.append(ant(theta_array_virgo, varphi_array_virgo, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='hanford':
+                        F.append(ant(theta_array_hanford, varphi_array_hanford, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='livingston':
+                        F.append(ant(theta_array_livingston, varphi_array_livingston, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='kagra':
+                        F.append(ant(theta_array_kagra, varphi_array_kagra, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='et':
+                        F.append(ant(theta_array_ET, varphi_array_ET, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+            
+            if np.isscalar(m1): # Unchanged.
+                f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+            else : # Unchanged.
+                f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+                f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+            # the waveform want to eat red-shifted mass.
+                f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+                freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+            f1=f_up # Unchanged.
+            #print(f1)
+            #print(f2)
+            rho_sq_core_value = [] # Array to hold individual detector SNR^2 values.
+            frequency_sig = []   # Array to hold individual detector freq_sig value0s
+            #a1, a2=[],[]
+            for i, noise in enumerate(noise_tab):
+                # This has been made iterative.
+                rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))
+                #frequency_sig.append(self.frequency_sigma(noise, self.mod_shape))
+                #frequency_sigma to calculate sigma_t
+               # if (rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)).all()>0:
+                #frequency_sig.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=None))/(rho_sq_core(noise, self.mod_shape, f_up=None))-((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=None))/(rho_sq_core(noise, self.mod_shape, f_up=None)))**2)
+                #a1.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=f_up))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)))
+                #a2.append(((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=f_up))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)))**2)
+                #frequency_sig.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=f_up))/(rho_sq_core(noise, self.mod_shape, f_up=f_up))-((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=f_up))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)))**2)
+                frequency_sig.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=f_up)+self.frequency_sigma_sq_merger_1(noise, self.mod_shape_merger, f1=f1, f2=f2)+self.frequency_sigma_sq_ringdown_1(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))-((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=f_up)+self.frequency_sigma_sq_merger_2(noise, self.mod_shape_merger, f1=f1, f2=f2)+self.frequency_sigma_sq_ringdown_2(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)))**2)
+            #print(A_array[0], A_array[0].shape)
+            if len(A_array[0].shape)==2: # Shape of first list entry is checked. WHY ==2?
+                rho_sq_array = [] # List to hold individual detector SNR^2 values.
+                for i, rho_sq in enumerate(rho_sq_core_value):
+                    rho_sq_array.append(4.*np.einsum('i...,i->i...',A_array[i]**2,rho_sq))
+                
+                rho_sq_network_array = np.zeros(rho_sq_array[0].shape) # Numpy array to hold the network SNR^2 values.
+                for i, rho_sq in enumerate(rho_sq_array):
+                    rho_sq_network_array += rho_sq
+                
+                heav_array = np.heaviside(rho_sq_network_array-rho_cri**2,0)
+                if withangles==True:
+                    heav_array_fluffy=heav_array+np.random.normal(0,scale=1e-4,size=heav_array.shape) # here is a very smart trick, hope someone will appreciate.
+                    the_index=np.argmax(heav_array_fluffy,axis=1)
+                    thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
+                    thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
+                    theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
+                    thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
+                    thetheta_dets = [] # List to hold individual detector thetas.
+                    thephi_dets = [] # List to hold individual detector phis.
+                    theiota_dets = [] # List to hold individual detector iotas.
+                    thepsi_dets = [] # List to hold individual detector psis.
+                    r_dets = [] # List to hold the detector locations in light seconds.
+                    for i, n in enumerate(name):
+                        theta_add = np.empty(the_index.size)
+                        phi_add = np.empty(the_index.size)
+                        iota_add = np.empty(the_index.size)
+                        psi_add = np.empty(the_index.size)
+                        if n == 'virgo':
+                            theta_add = theta_array_virgo_more[the_index] if accurate else theta_array_virgo[the_index] # Continue here.
+                            phi_add = varphi_array_virgo_more[the_index] if accurate else varphi_array_virgo[the_index] # Continue here.
+                            iota_add = iota_array_virgo_more[the_index] if accurate else iota_array_virgo[the_index] # Continue here.
+                            psi_add = psi_array_virgo_more[the_index] if accurate else psi_array_virgo[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('Virgo'))))
+                        if n == 'hanford':
+                            theta_add = theta_array_hanford_more[the_index] if accurate else theta_array_hanford[the_index] # Continue here.
+                            phi_add = varphi_array_hanford_more[the_index] if accurate else varphi_array_hanford[the_index] # Continue here.
+                            iota_add = iota_array_hanford_more[the_index] if accurate else iota_array_hanford[the_index] # Continue here.
+                            psi_add = psi_array_hanford_more[the_index] if accurate else psi_array_hanford[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LHO_4k'))))
+                        if n == 'livingston':
+                            theta_add = theta_array_livingston_more[the_index] if accurate else theta_array_livingston[the_index] # Continue here.
+                            phi_add = varphi_array_livingston_more[the_index] if accurate else varphi_array_livingston[the_index] # Continue here.
+                            iota_add = iota_array_livingston_more[the_index] if accurate else iota_array_livingston[the_index] # Continue here.
+                            psi_add = psi_array_livingston_more[the_index] if accurate else psi_array_livingston[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LLO_4k'))))
+                        if n == 'kagra':
+                            theta_add = theta_array_kagra_more[the_index] if accurate else theta_array_kagra[the_index] # Continue here.
+                            phi_add = varphi_array_kagra_more[the_index] if accurate else varphi_array_kagra[the_index] # Continue here.
+                            iota_add = iota_array_kagra_more[the_index] if accurate else iota_array_kagra[the_index] # Continue here.
+                            psi_add = psi_array_kagra_more[the_index] if accurate else psi_array_kagra[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('KAGRA'))))
+                        if n == 'et':
+                            theta_add = theta_array_ET_more[the_index] if accurate else theta_array_ET[the_index] # Continue here.
+                            phi_add = varphi_array_ET_more[the_index] if accurate else varphi_array_ET[the_index] # Continue here.
+                            iota_add = iota_array_ET_more[the_index] if accurate else iota_array_ET[the_index] # Continue here.
+                            psi_add = psi_array_ET_more[the_index] if accurate else psi_array_ET[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation(6.08453, 50.77234)))) # Somewhere in Aachen.
+                        thetheta_dets.append(theta_add)
+                        thephi_dets.append(phi_add)
+                        theiota_dets.append(iota_add)
+                        thepsi_dets.append(psi_add)
+                    therho2=np.diagonal(rho_sq_network_array[:,the_index])
+                    therho2_dets = [] # List to hold individual detector SNRs.
+                    #freq_sigma2 = []
+                    for i, rho_sq in enumerate(rho_sq_array):
+                        therho2_dets.append(np.diagonal(rho_sq[:, the_index]))
+                    #for i, freq_sig2 in enumerate(frequency_sig):
+                    #    freq_sigma2.append(np.diagonal(freq_sig2[:, the_index]))
+                    areas = np.empty(m1.size) # Array to hold the areas.
+                    sigma_t = np.empty((m1.size, len(name))) # Array to hold the time errors. For use in area calculation.
+                    for i, rho2 in enumerate(therho2_dets):
+                        sigma_t[:, i] = sig_t(np.sqrt(rho2), np.sqrt(frequency_sig[i]))
+                    for i in range(m1.size):
+                        s = []
+                        for j in range(len(name)):
+                            s.append(sigma_t[i, j])
+                        M = m(r_dets, s)
+                        r = R_from_theta_phi(thetheta[i], thephi[i])
+                        areas[i] = area(r, M, .9)
+                    return [np.mean(heav_array,axis=1), thetheta, thephi, theiota, thepsi, therho2, areas, thetheta_dets, thephi_dets, theiota_dets, thepsi_dets]
+                else:
+                    return np.mean(heav_array,axis=1)
 
-    def density_det(self, T, z, m1, m2, rho_cri, ant_fun, noise_tab, accurate):
+            else:
+                rho_sq_array = [] # List to hold individual detector SNR^2 values.
+                for i, rho_sq in enumerate(rho_sq_core_value):
+                    rho_sq_array.append(np.array(4.*A_array[i]**2*rho_sq))
+                
+                rho_sq_network_array = 0 # Numpy array to hold the network SNR^2 values.
+                for i, rho_sq in enumerate(rho_sq_array):
+                    rho_sq_network_array += rho_sq
+                
+                heav_array = np.heaviside(rho_sq_network_array-rho_cri**2,0)
+                if withangles==True:
+                    good_indice= np.argwhere(heav_array==1)
+                    print(good_indice)#debugs
+                    the_index=np.random.choice(good_indice)#change to one dimensional .flatten()
+                    thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
+                    thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
+                    theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
+                    thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
+                    thetheta_dets = [] # List to hold individual detector thetas.
+                    thephi_dets = [] # List to hold individual detector phis.
+                    theiota_dets = [] # List to hold individual detector iotas.
+                    thepsi_dets = [] # List to hold individual detector psis.
+                    r_dets = [] # List to hold the detector locations in light seconds.
+                    for i, n in enumerate(name):
+                        theta_add = np.empty(the_index.size)
+                        phi_add = np.empty(the_index.size)
+                        iota_add = np.empty(the_index.size)
+                        psi_add = np.empty(the_index.size)
+                        if n == 'virgo':
+                            theta_add = theta_array_virgo_more[the_index] if accurate else theta_array_virgo[the_index] # Continue here.
+                            phi_add = varphi_array_virgo_more[the_index] if accurate else varphi_array_virgo[the_index] # Continue here.
+                            iota_add = iota_array_virgo_more[the_index] if accurate else iota_array_virgo[the_index] # Continue here.
+                            psi_add = psi_array_virgo_more[the_index] if accurate else psi_array_virgo[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('Virgo'))))
+                        if n == 'hanford':
+                            theta_add = theta_array_hanford_more[the_index] if accurate else theta_array_hanford[the_index] # Continue here.
+                            phi_add = varphi_array_hanford_more[the_index] if accurate else varphi_array_hanford[the_index] # Continue here.
+                            iota_add = iota_array_hanford_more[the_index] if accurate else iota_array_hanford[the_index] # Continue here.
+                            psi_add = psi_array_hanford_more[the_index] if accurate else psi_array_hanford[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LHO_4k'))))
+                        if n == 'livingston':
+                            theta_add = theta_array_livingston_more[the_index] if accurate else theta_array_livingston[the_index] # Continue here.
+                            phi_add = varphi_array_livingston_more[the_index] if accurate else varphi_array_livingston[the_index] # Continue here.
+                            iota_add = iota_array_livingston_more[the_index] if accurate else iota_array_livingston[the_index] # Continue here.
+                            psi_add = psi_array_livingston_more[the_index] if accurate else psi_array_livingston[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LLO_4k'))))
+                        if n == 'kagra':
+                            theta_add = theta_array_kagra_more[the_index] if accurate else theta_array_kagra[the_index] # Continue here.
+                            phi_add = varphi_array_kagra_more[the_index] if accurate else varphi_array_kagra[the_index] # Continue here.
+                            iota_add = iota_array_kagra_more[the_index] if accurate else iota_array_kagra[the_index] # Continue here.
+                            psi_add = psi_array_kagra_more[the_index] if accurate else psi_array_kagra[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('KAGRA'))))
+                        if n == 'et':
+                            theta_add = theta_array_ET_more[the_index] if accurate else theta_array_ET[the_index] # Continue here.
+                            phi_add = varphi_array_ET_more[the_index] if accurate else varphi_array_ET[the_index] # Continue here.
+                            iota_add = iota_array_ET_more[the_index] if accurate else iota_array_ET[the_index] # Continue here.
+                            psi_add = psi_array_ET_more[the_index] if accurate else psi_array_ET[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation(6.08453, 50.77234)))) # Somewhere in Aachen.
+                        thetheta_dets.append(theta_add)
+                        thephi_dets.append(phi_add)
+                        theiota_dets.append(iota_add)
+                        thepsi_dets.append(psi_add)
+                    therho2=rho_sq_array[the_index]
+                    therho2_dets = [] # List to hold individual detector SNRs.
+                    #freq_sigma2 = []
+                    for i, rho_sq in enumerate(rho_sq_array):
+                        therho2_dets.append(np.diagonal(rho_sq[:, the_index]))
+                    #for i, freq_sig2 in enumerate(frequency_sig):
+                    #    freq_sigma2.append(np.diagonal(freq_sig2[:, the_index]))
+                    areas = np.empty(m1.size) # Array to hold the areas.
+                    sigma_t = np.empty((m1.size, len(name))) # Array to hold the time errors. For use in area calculation.
+                    for i, rho2 in enumerate(therho2_dets):
+                        sigma_t[:, i] = sig_t(np.sqrt(rho2), np.sqrt(frequency_sig[i]))
+                    for i in range(m1.size):
+                        s = []
+                        for j in range(len(name)):
+                            s.append(sigma_t[i, j])
+                        M = m(r_dets, s)
+                        r = R_from_theta_phi(thetheta[i], thephi[i])
+                        areas[i] = area(r, M, .9)
+                    
+                    #frint("my here! debugging")
+                    return [np.mean(heav_array), thetheta, thephi, theiota, thepsi, therho2, areas, thetheta_dets, thephi_dets, theiota_dets, thepsi_dets]
+                else:
+                    return np.mean(heav_array)
+
+    def density_det(self, T, z, m1, m2, rho_cri, ant_fun, noise_tab,accurate, name=None, withangles=False): # Changes/Alternative needed.
         """
         The parameter distribution of detected sources.
 
@@ -781,12 +1436,13 @@ class BHB:
         Returns:
           (array of floats): Number density of detection, same length with z array.
         """
+        #print("Calculating density_det")
         T_year = (T*u.min).to(u.a).value # T in unit of minuts
-        return 4.*np.pi*T_year*self.cos_mer_rate(z, m1, m2)*self.tel_fun(z,m1,m2, rho_cri,ant_fun,noise_tab,accurate, withangles=False)*self.cosmos.differential_comoving_volume(z).to_value(u.Gpc**3/u.sr)/(1+z) #self.cos_mer_rate(z, m1, m2), self.tel_fun(z,m1,m2, rho_cri,ant_fun,noise_tab,accurate, withangles)
+        return 4.*np.pi*T_year*self.cos_mer_rate(z, m1, m2)*self.tel_fun(z,m1,m2, rho_cri,ant_fun,noise_tab,accurate, name, withangles)*self.cosmos.differential_comoving_volume(z).to_value(u.Gpc**3/u.sr)/(1+z)
         #return T_year*self.cos_mer_rate(z, m1, m2, chi)
         #return self.cosmos.differential_comoving_volume(z).to_value(u.Gpc**3/u.sr)
 
-    def giveave_local(self,x):
+    def giveave_local(self,x): # Changes/Alternative needed.
         # Monte-Carlo integral with importance sampling
         i,length,T,rho_cri,ant_fun,noise_tab=x
 #        np.random.seed(i*int(time.time()%3))
@@ -796,7 +1452,7 @@ class BHB:
         Ndet_array = self.density_det(T, z_array, m1_array, m2_array,rho_cri,ant_fun,noise_tab,accurate=False)/lognm(z_array,mu=-0.6,sig=0.4)/lognm(m1_array,mu=4,sig=1)/lognm(m2_array,mu=4,sig=1)/4.
         return np.mean(Ndet_array)
 
-    def giveave_universe(self,x):
+    def giveave_universe(self,x): # Changes/Alternative needed.
         i,length,T,rho_cri,ant_fun,noise_tab=x
         np.random.seed(i*int(time.time()%3))
         z_array=z_array_et
@@ -806,8 +1462,8 @@ class BHB:
         return np.mean(Ndet_array)
     #chi_array = np.random.uniform(low=-0.5, high=0.5, size=length)
 
-    def tot_num(self, T, rho_cri, ant_fun, noise_tab, generation):
-        """R0, tau, self.loc, self.scal,self.low,self.high, self.chi_sigma = self.the
+    def tot_num(self, T, rho_cri, ant_fun, noise_tab, generation, name): # Changes/Alternative needed.
+        """
         The total number of sources detected.
 
         Parameters:
@@ -820,6 +1476,7 @@ class BHB:
         Returns:
           (float): The total number of sources detected
         """
+        network = isinstance(ant_fun, list) # Checks whether a network is being employed.
         #length = 10000
         #m1_ranges = ranges[1]
         #m2_ranges = ranges[2]
@@ -829,45 +1486,89 @@ class BHB:
         #x2=[200,length,T,rho_cri,ant_fun,noise_tab]
         #x3=[300,length,T,rho_cri,ant_fun,noise_tab]
         #x4=[400,length,T,rho_cri,ant_fun,noise_tab]
-        if generation=='2G':
-            # local sources
-            #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
-            dnz=self.density_det(T, z_array_ligo, m1_array_ligo, m2_array_ligo, rho_cri, ant_fun, noise_tab,accurate=True)
-            #sumation=0
-            #for i in range(11):
-            #    for j in range(53):
-            #        for k in range(j+1):
-            #            index=int(i*53*54/2+j*(j+1)/2+k)
-            #            sumation+=dnz[index]*0.2*1*1 # 0.2*1*1 is the volume element in the parmaeter space
-            sumation=np.sum(dnz)*0.2*1.8*1.8
-            results=sumation
-        elif generation=='3G':
-            dnz=self.density_det(T, z_array_et, m1_array_et, m2_array_et, rho_cri, ant_fun, noise_tab,accurate=True)
-            #sumation=0
-            #for i in range(21):
-            #    for j in range(53):
-            #        for k in range(j+1):
-            #            index=int(i*53*54/2+j*(j+1)/2+k)
-            #            sumation+=dnz[index]*(, self.chi_sigma = self.the10-1e-2)/20.*(55-3.01)/52.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
-            sumation=np.sum(dnz)*0.5*1*1
-            results=sumation
-        elif generation=='med':
-            dnz=self.density_det(T, z_array_med, m1_array_med, m2_array_med, rho_cri, ant_fun, noise_tab,accurate=True)
-            #sumation=0
-            #for i in range(21):
-            #    for j in range(53):
-            #        for k in range(j+1):
-            #            index=int(i*53*54/2+j*(j+1)/2+k)
-            #            sumation+=dnz[index]*(10-1e-2)/20.*(55-3.01)/52.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
-            sumation=np.sum(dnz)*0.45*1.6*1.6
-            results=sumation
+        if not network: #Same routine as is currently used for single detectors.
+            if generation=='2G':
+                # local sources
+                #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
+                dnz=self.density_det(T, z_array_ligo, m1_array_ligo, m2_array_ligo, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(53):
+                #        for k in range(j+1):
+                #            index=int(i*53*54/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*0.2*1*1 # 0.2*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*0.2*1.8*1.8
+                results=sumation
+            elif generation=='3G':
+                dnz=self.density_det(T, z_array_et, m1_array_et, m2_array_et, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(21):
+                #    for j in range(53):
+                #        for k in range(j+1):
+                #            index=int(i*53*54/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(10-1e-2)/20.*(55-3.01)/52.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*0.5*1*1
+                results=sumation
+            elif generation=='med':
+                dnz=self.density_det(T, z_array_med, m1_array_med, m2_array_med, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(21):
+                #    for j in range(53):
+                #        for k in range(j+1):
+                #            index=int(i*53*54/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(10-1e-2)/20.*(55-3.01)/52.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*0.45*1.6*1.6
+                results=sumation
 
-            # the above is to calculate the total number at high redshift (z=6.72335754-10)
-            #results=pool.map(self.giveave_universe, [x1,x2,x3,x4])
-            #T_year=(T*u.min).to(u.a).value
-            #Cosmology_1D=self.cosmos.differential_comoving_volume(self.zs[:40]).to_value(u.Gpc**3/u.sr)/(1.+self.zs[:40])
-            #Nz=self.Rm[:40]*Cosmology_1D*4.*np.pi*T_year
-            #results+=np.trapz(Nz,self.zs[:40])
+                # the above is to calculate the total number at high redshift (z=6.72335754-10)
+                #results=pool.map(self.giveave_universe, [x1,x2,x3,x4])
+                #T_year=(T*u.min).to(u.a).value
+                #Cosmology_1D=self.cosmos.differential_comoving_volume(self.zs[:40]).to_value(u.Gpc**3/u.sr)/(1.+self.zs[:40])
+                #Nz=self.Rm[:40]*Cosmology_1D*4.*np.pi*T_year
+                #results+=np.trapz(Nz,self.zs[:40])
+        
+        if network:
+            # Generation is chosen to be the highest one available in the generation list.
+            if '3G' in generation:
+                dnz=self.density_det(T, z_array_et, m1_array_et, m2_array_et, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(21):
+                #    for j in range(53):
+                #        for k in range(j+1):
+                #            index=int(i*53*54/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(10-1e-2)/20.*(55-3.01)/52.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*0.5*1*1 # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+            elif 'med' in generation:
+                dnz=self.density_det(T, z_array_med, m1_array_med, m2_array_med, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(21):
+                #    for j in range(53):
+                #        for k in range(j+1):
+                #            index=int(i*53*54/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(10-1e-2)/20.*(55-3.01)/52.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*0.45*1.6*1.6 # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+
+                # the above is to calculate the total number at high redshift (z=6.72335754-10)
+                #results=pool.map(self.giveave_universe, [x1,x2,x3,x4])
+                #T_year=(T*u.min).to(u.a).value
+                #Cosmology_1D=self.cosmos.differential_comoving_volume(self.zs[:40]).to_value(u.Gpc**3/u.sr)/(1.+self.zs[:40])
+                #Nz=self.Rm[:40]*Cosmology_1D*4.*np.pi*T_year
+                #results+=np.trapz(Nz,self.zs[:40])
+            elif '2G' in generation:
+                # local sources
+                #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
+                dnz=self.density_det(T, z_array_ligo, m1_array_ligo, m2_array_ligo, rho_cri, ant_fun, noise_tab,accurate=False, name=name)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(53):
+                #        for k in range(j+1):
+                #            index=int(i*53*54/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*0.2*1*1 # 0.2*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*0.2*1.8*1.8 # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+        
         expect=results
         #return np.random.poisson(lam=expect)
         return expect
@@ -890,18 +1591,19 @@ class BHB:
         cata_all=trace_all[:,np.random.choice(np.arange(len(trace_all[0])),size=n_sources,replace=False)]
         pool.close()
         return cata_all
-    def MCMCsample(self, n_sources, inits, T, rho_cri, ant_fun, noise_tab):
+    def MCMCsample(self, n_sources, inits, T, rho_cri, ant_fun, noise_tab, name=None, withangles=False):
         """
-            The parallel Markov-chain-Monte-Carlo sampling.R0, tau, self.loc, self.scal,self.low,self.high, self.chi_sigma = self.the
+            The parallel Markov-chain-Monte-Carlo sampling.
         """
         func=self.density_det
         n_cores=4
         n_sample=int(n_sources/n_cores)+1
         ps=[]
         for i in range(n_cores):
-            p=[func, n_sample, inits, T, rho_cri, ant_fun, noise_tab, self.cosmos,i, self.chi_sigma]
+            p=[func, n_sample, inits, T, rho_cri, ant_fun, noise_tab, name, withangles, self.cosmos,i, self.chi_sigma]
             ps.append(p)
         pool=Pool(n_cores)
+        print('MCMC setup completed.')
         traces=pool.map(mcmcunit_scout_bhbh, ps) # _old is the tranditional Metroplis-Hastling sampling, and w/o _old is Gibbs sampling.
         # multiprocessing, parallel running with three cores.
         trace_all=np.concatenate(tuple(traces),axis=1)
@@ -977,6 +1679,7 @@ class BHB:
                     samples_m2 = np.append(samples_m2,[min(m1,m2)])
                     samples_chi = np.append(samples_chi,[chi])
                     length += 1
+
         samples_D = self.cosmos.luminosity_distance(samples_z).value
         samples_Mc = chirp_mass(samples_m1,samples_m2)
 
@@ -1032,6 +1735,7 @@ class BHB:
             errors_chi[i] = np.sqrt(np.diag(err_mt)[2])
 
         return [errors_m1,errors_m2,errors_chi]
+
 class DNS(BHB):
     """
     This is a class to describe double neutron stars mergers.
@@ -1042,7 +1746,7 @@ class DNS(BHB):
 
     """
 
-    def __init__(self,cosmos):
+    def __init__(self,cosmos): # No changes needed.
         """
         Parameters:
           cosmos (class): define cosmological model
@@ -1055,7 +1759,7 @@ class DNS(BHB):
         #self.zs=np.linspace(1e-2,10,100)
         #self.Rm=np.zeros(len(self.zs))
         #self.Rm=R0*R(self.zs, 2.7, 5.6, 2.9, tau, self.cosmos)
-    def set_model_theta(self, new_theta=None):
+    def set_model_theta(self, new_theta=None): # No changes needed.
         """
         The function to change theta from fiducial to user-defined.
 
@@ -1066,9 +1770,9 @@ class DNS(BHB):
           (list of floats): theta with new values, if new_theta=None return theta to fiducial
         """
         if new_theta != None:
-           self.theta = new_theta
+            self.theta = new_theta
         else:
-           self.theta = DNS_Pop1
+            self.theta = DNS_Pop1
         R0, tau, self.loc, self.scal,self.low,self.high, self.chi_sigma = self.theta
         if not R0>0:
             raise ValueError("R0 must be positive")
@@ -1085,7 +1789,7 @@ class DNS(BHB):
         if not self.chi_sigma>0:
             raise ValueError("chi_sigma must be positive")
         self.Rm=R0*R(self.zs, 2.7, 5.6, 2.9, tau, self.cosmos)
-    def cos_mer_rate(self, z, m1, m2):
+    def cos_mer_rate(self, z, m1, m2): # No changes needed.
         """
         The cosmic merger rate density of the stellar-mass DNS mergers.
 
@@ -1141,50 +1845,84 @@ class DNS(BHB):
         Ndet_array = np.array([self.density_det(T, z, m1, m2,rho_cri,ant_fun,noise_tab,accurate=False)/lognm(z,mu=0.69,sig=1.2)/truncnorm.pdf(m1, aNS, bNS, loc=loc, scale=scal)/truncnorm.pdf(m2, aNS, bNS, loc=loc, scale=scal) for (z, m1, m2) in zip(z_array, m1_array, m2_array)])
         return np.mean(Ndet_array)
 
-    def tot_num(self, T, rho_cri, ant_fun, noise_tab, generation):
+    def tot_num(self, T, rho_cri, ant_fun, noise_tab, generation, name): # No changes needed.
         #z_ranges = ranges[0]
         #m1_ranges = ranges[1]
         #m2_ranges = ranges[2]
         #chi_ranges = ranges[3]
         #x=1,1000,T,rho_cri,ant_fun,noise_tab
-        if generation=='2G':
-            #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
-            dnz=self.density_det(T, z_array_ligo_DNS, m1_array_ligo_DNS, m2_array_ligo_DNS, rho_cri, ant_fun, noise_tab,accurate=True)
-            #sumation=0
-            #for i in range(11):
-            #    for j in range(21):
-            #        for k in range(j+1):
-            #            index=int(i*21*22/2+j*(j+1)/2+k)
-            #            sumation+=dnz[index]*(1e-2-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # 0.2*1*1 is the volume element in the parmaeter space
-            sumation=np.sum(dnz)*(1e-1-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20.
-            results=sumation
-        elif generation=='3G':
-            dnz=self.density_det(T, z_array_et_DNS, m1_array_et_DNS, m2_array_et_DNS, rho_cri, ant_fun, noise_tab,accurate=True)
-            #sumation=0
-            #for i in range(11):
-            #    for j in range(21):
-            #        for k in range(j+1):
-            #            index=int(i*21*22/2+j*(j+1)/2+k)
-            #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
-            sumation=np.sum(dnz)*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20.
-            results=sumation
-        else:
-            dnz=self.density_det(T, z_array_med_DNS, m1_array_med_DNS, m2_array_med_DNS, rho_cri, ant_fun, noise_tab,accurate=True)
-            #sumation=0
-            #for i in range(11):
-            #    for j in range(21):
-            #        for k in range(j+1):
-            #            index=int(i*21*22/2+j*(j+1)/2+k)
-            #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
-            sumation=np.sum(dnz)*(0.5-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20.
-            results=sumation
-        #if z_ranges[1]<=3:
-        #    result=self.giveave_local(x)
-        #else:
-        #    result=self.giveave_universe(x)
-        #return np.random.poisson(lam=results)
+        network = isinstance(ant_fun, list) # Checks whether a network is being employed.
+        if not network:
+            if generation=='2G':
+                #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
+                dnz=self.density_det(T, z_array_ligo_DNS, m1_array_ligo_DNS, m2_array_ligo_DNS, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(1e-2-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # 0.2*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(1e-1-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20.
+                results=sumation
+            elif generation=='3G':
+                dnz=self.density_det(T, z_array_et_DNS, m1_array_et_DNS, m2_array_et_DNS, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20.
+                results=sumation
+            else:
+                dnz=self.density_det(T, z_array_med_DNS, m1_array_med_DNS, m2_array_med_DNS, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(0.5-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+            #if z_ranges[1]<=3:
+            #    result=self.giveave_local(x)
+            #else:
+            #    result=self.giveave_universe(x)
+            #return np.random.poisson(lam=results)
+        if network:
+            if '3G' in generation:
+                dnz=self.density_det(T, z_array_et_DNS, m1_array_et_DNS, m2_array_et_DNS, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+            elif 'med' in generation:
+                dnz=self.density_det(T, z_array_med_DNS, m1_array_med_DNS, m2_array_med_DNS, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(0.5-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+            elif '2G' in generation:
+                #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
+                dnz=self.density_det(T, z_array_ligo_DNS, m1_array_ligo_DNS, m2_array_ligo_DNS, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(1e-2-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # 0.2*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(1e-1-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
         return results
-    def MCMCsample(self, n_sources, inits, T, rho_cri, ant_fun, noise_tab):
+    def MCMCsample(self, n_sources, inits, T, rho_cri, ant_fun, noise_tab, name=None, withangles=False):
         """
             The parallel Markov-chain-Monte-Carlo sampling.
             DNS
@@ -1198,7 +1936,7 @@ class DNS(BHB):
         n_sample=int(n_larger/n_cores)+1
         ps=[]
         for i in range(n_cores):
-            p=[func, n_sample, inits,T,rho_cri, ant_fun, noise_tab, self.cosmos,i*100, self.chi_sigma]
+            p=[func, n_sample, inits,T,rho_cri, ant_fun, noise_tab, name, withangles, self.cosmos,i*100, self.chi_sigma]
             ps.append(p)
         pool=Pool(n_cores)
         traces=pool.map(mcmcunit_scout_bhbh, ps) # _old is the tranditional Metroplis-Hastling sampling, and w/o _old is Gibbs sampling.
@@ -1296,7 +2034,7 @@ class BHNS(BHB):
                 raise ValueError("chi_sigma should be larger than zero")
         self.Rm=R0*R(self.zs, 2.7, 5.6, 2.9, tau, self.cosmos)
         self.pop=pop
-    def cos_mer_rate(self, z, M, m):
+    def cos_mer_rate(self, z, M, m): # No changes needed.
         """
         The cosmic merger rate density of the stellar-mass BHB mergers.
 
@@ -1335,7 +2073,7 @@ class BHNS(BHB):
         rate = norm*pm*pM
         return rate
 
-    def giveave_local(self,x):
+    def giveave_local(self,x): # No changes needed.
         a0,a1,t0,t1,loc,scal,low,high,b0,b1,c0,c1,d0,d1 = self.theta
         aNS,bNS = (low-loc)/scal, (high-loc)/scal
         #pm1 = truncnorm.pdf(m1, aNS, bNS, loc=loc, scale=scal)
@@ -1349,7 +2087,7 @@ class BHNS(BHB):
         Ndet_array = np.array([self.density_det(T, z, M, m,rho_cri,ant_fun,noise_tab,accurate=False)/lognm(z,mu=-1.4,sig=1.2)/truncnorm.pdf(m, aNS, bNS, loc=loc, scale=scal)/lognm(M,mu=2.7,sig=0.5) for (z, M, m) in zip(z_array, M_array, m_array)])
         return np.mean(Ndet_array)
 
-    def giveave_universe(self,x):
+    def giveave_universe(self,x): # No changes needed.
         a0,a1,t0,t1,loc,scal,low,high,b0,b1,c0,c1,d0,d1 = self.theta
         aNS,bNS = (low-loc)/scal, (high-loc)/scal
         i,length,T,rho_cri,ant_fun,noise_tab=x
@@ -1361,7 +2099,7 @@ class BHNS(BHB):
         return np.mean(Ndet_array)
 
 
-    def tot_num(self, T, rho_cri, ant_fun, noise_tab, generation):
+    def tot_num(self, T, rho_cri, ant_fun, noise_tab, generation, name): # Changes/Alternative needed.
 #        z_ranges = ranges[0]
 #        m1_ranges = ranges[1]
 #        m2_ranges = ranges[2]
@@ -1371,35 +2109,66 @@ class BHNS(BHB):
         #    result=self.giveave_local(x)
         #else:
         #    result=self.giveave_universe(x)
-        if generation=='2G':
-            #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
-            dnz=self.density_det(T, z_array_ligo_BHNS, m1_array_ligo_BHNS, m2_array_ligo_BHNS, rho_cri, ant_fun, noise_tab,accurate=True)
-            sumation=np.sum(dnz)*0.2*(2.5-1)/20.*1
-            results=sumation
-        elif generation=='3G':
-            dnz=self.density_det(T, z_array_et_BHNS, m1_array_et_BHNS, m2_array_et_BHNS, rho_cri, ant_fun, noise_tab,accurate=True)
-            #sumation=0
-            #for i in range(11):
-            #    for j in range(53):
-            #        for k in range(21):
-            #            index=i*21*53+j*21+k
-            #            sumation+=dnz[index]*(10-1e-2)/10.*(2.5-1)/20.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
-            sumation=np.sum(dnz)*(10-1e-2)/10.*(2.5-1)/20.*(55-3.01)/52.
-            results=sumation
-        else:
-            dnz=self.density_det(T, z_array_med_BHNS, m1_array_med_BHNS, m2_array_med_BHNS, rho_cri, ant_fun, noise_tab,accurate=True)
-            #sumation=0
-            #for i in range(11):
-            #    for j in range(53):
-            #        for k in range(21):
-            #            index=i*21*53+j*21+k
-            #            sumation+=dnz[index]*(10-1e-2)/10.*(2.5-1)/20.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
-            sumation=np.sum(dnz)*0.2*(2.5-1)/20.*60./52.
-            results=sumation
+        network = isinstance(ant_fun, list) # Checks whether a network is being employed.
+        
+        if not network:
+            if generation=='2G':
+                #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
+                dnz=self.density_det(T, z_array_ligo_BHNS, m1_array_ligo_BHNS, m2_array_ligo_BHNS, rho_cri, ant_fun, noise_tab,accurate=True)
+                sumation=np.sum(dnz)*0.2*(2.5-1)/20.*1
+                results=sumation
+            elif generation=='3G':
+                dnz=self.density_det(T, z_array_et_BHNS, m1_array_et_BHNS, m2_array_et_BHNS, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(53):
+                #        for k in range(21):
+                #            index=i*21*53+j*21+k
+                #            sumation+=dnz[index]*(10-1e-2)/10.*(2.5-1)/20.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(10-1e-2)/10.*(2.5-1)/20.*(55-3.01)/52.
+                results=sumation
+            else:
+                dnz=self.density_det(T, z_array_med_BHNS, m1_array_med_BHNS, m2_array_med_BHNS, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(53):
+                #        for k in range(21):
+                #            index=i*21*53+j*21+k
+                #            sumation+=dnz[index]*(10-1e-2)/10.*(2.5-1)/20.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*0.2*(2.5-1)/20.*60./52.
+                results=sumation
+            
+        
+        if network:
+            if '3G' in generation:
+                dnz=self.density_det(T, z_array_et_BHNS, m1_array_et_BHNS, m2_array_et_BHNS, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(53):
+                #        for k in range(21):
+                #            index=i*21*53+j*21+k
+                #            sumation+=dnz[index]*(10-1e-2)/10.*(2.5-1)/20.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(10-1e-2)/10.*(2.5-1)/20.*(55-3.01)/52. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+            if 'med' in generation:
+                dnz=self.density_det(T, z_array_med_BHNS, m1_array_med_BHNS, m2_array_med_BHNS, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(53):
+                #        for k in range(21):
+                #            index=i*21*53+j*21+k
+                #            sumation+=dnz[index]*(10-1e-2)/10.*(2.5-1)/20.*(55-3.01)/52. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*0.2*(2.5-1)/20.*60./52. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+            if '2G' in generation:
+                #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
+                dnz=self.density_det(T, z_array_ligo_BHNS, m1_array_ligo_BHNS, m2_array_ligo_BHNS, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                sumation=np.sum(dnz)*0.2*(2.5-1)/20.*1 # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
         #return np.random.poisson(lam=results)
         return results
 
-    def MCMCsample(self, n_sources, inits, T, rho_cri, ant_fun, noise_tab):
+    def MCMCsample(self, n_sources, inits, T, rho_cri, ant_fun, noise_tab, name=None, withangles=False):
         """
             The parallel Markov-chain-Monte-Carlo sampling.
         """
@@ -1412,7 +2181,7 @@ class BHNS(BHB):
         n_sample=int(n_larger/n_cores)+1
         ps=[]
         for i in range(n_cores):
-            p=[func, n_sample, inits, T, rho_cri, ant_fun, noise_tab, self.cosmos,i, self.chi_sigma]
+            p=[func, n_sample, inits, T, rho_cri, ant_fun, noise_tab, name, withangles, self.cosmos,i, self.chi_sigma]
             ps.append(p)
         pool=Pool(n_cores)
         traces=pool.map(mcmcunit_scout_bhbh, ps) # _old is the tranditional Metroplis-Hastling sampling, and w/o _old is Gibbs sampling.
@@ -1421,7 +2190,605 @@ class BHNS(BHB):
         cata_all=trace_all[:,np.random.choice(np.arange(len(trace_all[0])),size=n_sources,replace=False)]
         pool.close()
         return cata_all
-class Background(DNS):
+
+class BG_DNS(BHB):
+    """
+    This is a class to describe background double neutron stars mergers.
+    It inherits all functions from BHB class except set_model_theta and cos_mer_rate.
+
+    Attributes:
+    cosmos: define cosmological model
+
+    """
+
+    def __init__(self,cosmos): # No changes needed.
+        """
+        Parameters:
+          cosmos (class): define cosmological model
+        """
+        self.cosmos = cosmos
+        #self.theta = thetaDNS
+        #self.chi_sigma=0.1
+        self.zs=np.linspace(1e-2,10,100)
+        #R0, tau, loc,scal,low,high = self.theta
+        #self.zs=np.linspace(1e-2,10,100)
+        #self.Rm=np.zeros(len(self.zs))
+        #self.Rm=R0*R(self.zs, 2.7, 5.6, 2.9, tau, self.cosmos)
+    def set_model_theta(self, new_theta=None): # No changes needed.
+        """
+        The function to change theta from fiducial to user-defined.
+
+        Parameters:
+          new_theta (Optional[list of floats]): new parameter values
+
+        Returns:
+          (list of floats): theta with new values, if new_theta=None return theta to fiducial
+        """
+        if new_theta != None:
+            self.theta = new_theta
+        else:
+            self.theta = DNS_Pop1
+        R0, tau, self.loc, self.scal,self.low,self.high, self.chi_sigma = self.theta
+        if not R0>0:
+            raise ValueError("R0 must be positive")
+        if not 0.1<tau<100:
+            raise ValueError("tau should be limited between 0.1-100")
+        if not self.low>0:
+            raise ValueError("m_low must be positive")
+        if not self.high>self.low:
+            raise ValueError("m_high must be larger than m_low")
+        if not self.low<self.loc<self.high:
+            raise ValueError("m_peak must in between m_low and m_high")
+        if not self.scal>0:
+            raise ValueError("m_scale must be positive")
+        if not self.chi_sigma>0:
+            raise ValueError("chi_sigma must be positive")
+        self.Rm=R0*R(self.zs, 2.7, 5.6, 2.9, tau, self.cosmos)
+    def cos_mer_rate(self, z, m1, m2): # No changes needed.
+        """
+        The cosmic merger rate density of the stellar-mass DNS mergers.
+
+        Parameters:
+          z (float): The redshift of the GW source
+          m1 (float): Red-shifted masses of the NS
+          m2 (float): Red-shifted masses of the NS
+          #chi (float): spin
+
+        Returns:
+          (float): The number of mergers per year per Gpc3
+        """
+        #a0,a1,t0,t1,loc,scal,low,high = self.theta
+        #R0, tau, loc,scal,low,high = self.theta
+        #if (z<=0 or z>=Z_HIGH): rate = 1e-10
+        #else:
+        #t = self.cosmos.lookback_time(z).value
+        #log10N = (a0+a1*t)/(np.exp((t-t0)/t1)+1.)
+        #norm = 10**log10N
+            # the normalization
+        norm=np.interp(z, self.zs, np.array(self.Rm))
+        aNS,bNS = (self.low-self.loc)/self.scal, (self.high-self.loc)/self.scal
+        pm1 = truncnorm.pdf(m1, aNS, bNS, loc=self.loc, scale=self.scal)
+        pm2 = truncnorm.pdf(m2, aNS, bNS, loc=self.loc, scale=self.scal)
+            #chi_sigma=0.1
+            #pchi=np.exp(-0.5*(chi/chi_sigma)**2)/(np.sqrt(2.*np.pi)*chi_sigma)
+            # the distribution of m1 and m2.
+        rate = norm*pm1*pm2
+        return rate
+
+    def giveave_local(self,x):
+        a0,a1,t0,t1,loc,scal,low,high = self.theta
+        aNS,bNS = (low-loc)/scal, (high-loc)/scal
+        #pm1 = truncnorm.pdf(m1, aNS, bNS, loc=loc, scale=scal)
+        i,length,T,rho_cri,ant_fun,noise_tab=x
+        np.random.seed(i*int(time.time()%3))
+        z_array = np.random.lognormal(-1.4,1.2,size=length)
+        m1_array= truncnorm.rvs(aNS, bNS, loc=loc, scale=scal,size=length)
+        m2_array= truncnorm.rvs(aNS, bNS, loc=loc, scale=scal,size=length)
+        #m1_array = np.random.lognormal(2.7,0.5,size=length)
+        #m2_array = np.random.lognormal(2.7,0.5,size=length)
+        Ndet_array = np.array([self.density_det(T, z, m1, m2,rho_cri,ant_fun,noise_tab,accurate=True)/lognm(z,mu=-1.4,sig=1.2)/truncnorm.pdf(m1, aNS, bNS, loc=loc, scale=scal)/truncnorm.pdf(m2, aNS, bNS, loc=loc, scale=scal) for (z, m1, m2) in zip(z_array, m1_array, m2_array)])
+        return np.mean(Ndet_array)
+
+    def giveave_universe(self,x):
+        a0,a1,t0,t1,loc,scal,low,high = self.theta
+        aNS,bNS = (low-loc)/scal, (high-loc)/scal
+        i,length,T,rho_cri,ant_fun,noise_tab=x
+        np.random.seed(i*int(time.time()%3))
+        z_array = np.random.lognormal(0.69,1.2,size=length)
+        m1_array= truncnorm.rvs(aNS, bNS, loc=loc, scale=scal, size=length)
+        m2_array= truncnorm.rvs(aNS, bNS, loc=loc, scale=scal, size=length)
+        Ndet_array = np.array([self.density_det(T, z, m1, m2,rho_cri,ant_fun,noise_tab,accurate=False)/lognm(z,mu=0.69,sig=1.2)/truncnorm.pdf(m1, aNS, bNS, loc=loc, scale=scal)/truncnorm.pdf(m2, aNS, bNS, loc=loc, scale=scal) for (z, m1, m2) in zip(z_array, m1_array, m2_array)])
+        return np.mean(Ndet_array)
+    def tel_fun(self, z, m1, m2, rho_cri, ant_fun, noise_tab, accurate=False, name=None, withangles=False): # Changes/Alternative needed!
+        """
+        The telescope function of Laser Interferometers and kHz sources.
+
+        Parameters:
+          z (float): The redshift of the GW source
+          m1 (float): Red-shifted masses of the BHB
+          m2 (float): Red-shifted masses of the BHB
+          #chi (float): spin
+          rho_cri (float): The detection SNR threshold
+          ant_fun (function): antenna pattern
+          noise_tab (array of dtype float): noise function for detector
+
+        Returns:
+          (float): The probability of detection
+        """
+        network = isinstance(ant_fun, list) # Checks whether we are dealing with a network.
+        # both masses should be intrinsic here.
+        Mch = chirp_mass(m1,m2)
+        if not network: # Everything after this is as it was for 1 detector.
+            if accurate:
+                path_angle_more=os.path.join(my_path, "accessory/angles_more.dat")
+                random_angles_more=np.loadtxt(path_angle_more)
+                theta_array_more = random_angles_more[:,0]
+                varphi_array_more = random_angles_more[:,1]
+                iota_array_more = random_angles_more[:,2]
+                psi_array_more = random_angles_more[:,3]
+                F = ant_fun(theta_array_more, varphi_array_more, psi_array_more)
+                A_array = self.mod_norm(Mch*(1+z), F, iota_array_more, z)
+            else:
+                F = ant_fun(theta_array, varphi_array, psi_array)
+                A_array = self.mod_norm(Mch*(1+z), F, iota_array, z)
+            if np.isscalar(m1):
+                f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+            else :
+                f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+                f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+            # the waveform want to eat red-shifted mass.
+                f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+                freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+            f1=f_up
+            rho_sq_core_value = rho_sq_core(noise_tab, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise_tab, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise_tab, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)
+
+            #theta_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
+            #varphi_array = np.random.uniform(low=0., high=2.*np.pi, size=length)
+            #iota_array = np.arccos(np.random.uniform(low=0., high=1., size=length))
+            #psi_array = np.random.uniform(low=0., high=2.*np.pi, size=length)
+            # an isotropic distribution of angles
+
+            if len(A_array.shape)==2:
+                rho_sq_array=4.*np.einsum('i...,i->i...',A_array**2,rho_sq_core_value)
+                #rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
+                heav_array = np.heaviside(rho_sq_array-rho_cri**2,0)
+                if withangles==True:
+                    heav_array_fluffy=heav_array+np.random.normal(0,scale=1e-4,size=heav_array.shape) # here is a very smart trick, hope someone will appreciate.
+                    the_index=np.argmax(heav_array_fluffy,axis=1)
+                    thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
+                    thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
+                    theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
+                    thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
+                    therho2=np.diagonal(rho_sq_array[:,the_index])
+                    return [np.mean(heav_array,axis=1), thetheta, thephi, theiota, thepsi, therho2]
+                else:
+                    return np.mean(heav_array,axis=1)
+            else:
+                rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
+                heav_array = np.heaviside(rho_sq_array-rho_cri**2,0)
+                if withangles==True:
+                    good_indice= np.argwhere(heav_array==1)
+                    the_index=np.random.choice(good_indice)
+                    thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
+                    thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
+                    theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
+                    thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
+                    therho2=rho_sq_array[the_index]
+                    #print("my here! debugging")
+                    return [np.mean(heav_array), thetheta, thephi, theiota, thepsi, therho2]
+                else:
+                    return np.mean(heav_array)
+            #return rho_sq_array
+
+        if network: # Similar routine but for networks.
+            if accurate: # This has been made iterative
+#                path_angle_more=os.path.join(my_path, "accessory/angles_more.dat")
+#                random_angles_more=np.loadtxt(path_angle_more)
+#                theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+#                varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+#                iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+#                psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                F = [] # Array to hold individual detector antenna functions
+                A_array = [] # Array to hold individual detector amplitudes
+                for i, ant in enumerate(ant_fun):
+                    if name[i]=='virgo':
+                        path_angle_more=os.path.join(my_path, "accessory/angles_virgo_more.dat")
+                        random_angles_more=np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='hanford':
+                        path_angle_more=os.path.join(my_path, "accessory/angles_hanford_more.dat")
+                        random_angles_more=np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='livingston':
+                        path_angle_more=os.path.join(my_path, "accessory/angles_livingston_more.dat")
+                        random_angles_more=np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='kagra':
+                        path_angle_more=os.path.join(my_path, "accessory/angles_kagra_more.dat")
+                        random_angles_more=np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='et':
+                        path_angle_more = os.path.join(my_path, "accessory/angles_et_more.dat")
+                        random_angles_more = np.loadtxt(path_angle_more)
+                        theta_array_more = random_angles_more[:,0] # NEEDS TRANSFORMING!
+                        varphi_array_more = random_angles_more[:,1] # NEEDS TRANSFORMING!
+                        iota_array_more = random_angles_more[:,2] # NEEDS TRANSFORMING (maybe)!
+                        psi_array_more = random_angles_more[:,3] # NEEDS TRANSFORMING!
+                        F.append(ant(theta_array, varphi_array, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+            else:
+                F = [] # Array to hold individual detector antenna functions
+                A_array = [] # Array to hold individual detector amplitudes
+                for i, ant in enumerate(ant_fun):
+                    if name[i]=='virgo':
+                        F.append(ant(theta_array_virgo, varphi_array_virgo, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='hanford':
+                        F.append(ant(theta_array_hanford, varphi_array_hanford, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='livingston':
+                        F.append(ant(theta_array_livingston, varphi_array_livingston, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='kagra':
+                        F.append(ant(theta_array_kagra, varphi_array_kagra, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+                    if name[i]=='et':
+                        F.append(ant(theta_array_ET, varphi_array_ET, psi_array))
+                        A_array.append(self.mod_norm(Mch*(1+z), F[i], iota_array, z))
+
+            if np.isscalar(m1): # Unchanged.
+                f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+                freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+            else : # Unchanged.
+                f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+                f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+            # the waveform want to eat red-shifted mass.
+                f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+                freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=np.zeros(len(m1)))
+            f1=f_up # Unchanged.
+            #print(f1)
+            #print(f2)
+            rho_sq_core_value = [] # Array to hold individual detector SNR^2 values.
+            frequency_sig = []   # Array to hold individual detector freq_sig value0s
+            #a1, a2=[],[]
+            noise_tab_new=[]
+            for i, noise in enumerate(noise_tab):
+                if i==0:
+                    noise_tab_new.append(noise*100000)
+                else:
+                    noise_tab_new.append(noise)
+            for i, noise in enumerate(noise_tab_new): # This has been made iterative.
+                #rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up))
+                rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))
+            for i, noise in enumerate(noise_tab):
+                # This has been made iterative.
+                #rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))
+                #frequency_sig.append(self.frequency_sigma(noise, self.mod_shape))
+                #frequency_sigma to calculate sigma_t
+               # if (rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)).all()>0:
+                #frequency_sig.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=None))/(rho_sq_core(noise, self.mod_shape, f_up=None))-((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=None))/(rho_sq_core(noise, self.mod_shape, f_up=None)))**2)
+                #a1.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=f_up))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)))
+                #a2.append(((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=f_up))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)))**2)
+                #frequency_sig.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=f_up))/(rho_sq_core(noise, self.mod_shape, f_up=f_up))-((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=f_up))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)))**2)
+                frequency_sig.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=f_up)+self.frequency_sigma_sq_merger_1(noise, self.mod_shape_merger, f1=f1, f2=f2)+self.frequency_sigma_sq_ringdown_1(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))-((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=f_up)+self.frequency_sigma_sq_merger_2(noise, self.mod_shape_merger, f1=f1, f2=f2)+self.frequency_sigma_sq_ringdown_2(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)))**2)
+            #print(A_array[0], A_array[0].shape)
+            #rho_sq_core_value[0]=0
+            if len(A_array[0].shape)==2: # Shape of first list entry is checked. WHY ==2?
+                rho_sq_array = [] # List to hold individual detector SNR^2 values.
+                for i, rho_sq in enumerate(rho_sq_core_value):
+                    rho_sq_array.append(4.*np.einsum('i...,i->i...',A_array[i]**2,rho_sq))
+
+                rho_sq_network_array = np.zeros(rho_sq_array[0].shape) # Numpy array to hold the network SNR^2 values.
+                for i, rho_sq in enumerate(rho_sq_array):
+                    rho_sq_network_array += rho_sq
+
+                heav_array = np.heaviside(rho_sq_network_array-rho_cri**2,0)
+                if withangles==True:
+                    heav_array_fluffy=heav_array+np.random.normal(0,scale=1e-4,size=heav_array.shape) # here is a very smart trick, hope someone will appreciate.
+                    the_index=np.argmax(heav_array_fluffy,axis=1)
+                    thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
+                    thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
+                    theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
+                    thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
+                    thetheta_dets = [] # List to hold individual detector thetas.
+                    thephi_dets = [] # List to hold individual detector phis.
+                    theiota_dets = [] # List to hold individual detector iotas.
+                    thepsi_dets = [] # List to hold individual detector psis.
+                    r_dets = [] # List to hold the detector locations in light seconds.
+                    for i, n in enumerate(name):
+                        theta_add = np.empty(the_index.size)
+                        phi_add = np.empty(the_index.size)
+                        iota_add = np.empty(the_index.size)
+                        psi_add = np.empty(the_index.size)
+                        if n == 'virgo':
+                            theta_add = theta_array_virgo_more[the_index] if accurate else theta_array_virgo[the_index] # Continue here.
+                            phi_add = varphi_array_virgo_more[the_index] if accurate else varphi_array_virgo[the_index] # Continue here.
+                            iota_add = iota_array_virgo_more[the_index] if accurate else iota_array_virgo[the_index] # Continue here.
+                            psi_add = psi_array_virgo_more[the_index] if accurate else psi_array_virgo[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('Virgo'))))
+                        if n == 'hanford':
+                            theta_add = theta_array_hanford_more[the_index] if accurate else theta_array_hanford[the_index] # Continue here.
+                            phi_add = varphi_array_hanford_more[the_index] if accurate else varphi_array_hanford[the_index] # Continue here.
+                            iota_add = iota_array_hanford_more[the_index] if accurate else iota_array_hanford[the_index] # Continue here.
+                            psi_add = psi_array_hanford_more[the_index] if accurate else psi_array_hanford[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LHO_4k'))))
+                        if n == 'livingston':
+                            theta_add = theta_array_livingston_more[the_index] if accurate else theta_array_livingston[the_index] # Continue here.
+                            phi_add = varphi_array_livingston_more[the_index] if accurate else varphi_array_livingston[the_index] # Continue here.
+                            iota_add = iota_array_livingston_more[the_index] if accurate else iota_array_livingston[the_index] # Continue here.
+                            psi_add = psi_array_livingston_more[the_index] if accurate else psi_array_livingston[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LLO_4k'))))
+                        if n == 'kagra':
+                            theta_add = theta_array_kagra_more[the_index] if accurate else theta_array_kagra[the_index] # Continue here.
+                            phi_add = varphi_array_kagra_more[the_index] if accurate else varphi_array_kagra[the_index] # Continue here.
+                            iota_add = iota_array_kagra_more[the_index] if accurate else iota_array_kagra[the_index] # Continue here.
+                            psi_add = psi_array_kagra_more[the_index] if accurate else psi_array_kagra[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('KAGRA'))))
+                        if n == 'et':
+                            theta_add = theta_array_ET_more[the_index] if accurate else theta_array_ET[the_index] # Continue here.
+                            phi_add = varphi_array_ET_more[the_index] if accurate else varphi_array_ET[the_index] # Continue here.
+                            iota_add = iota_array_ET_more[the_index] if accurate else iota_array_ET[the_index] # Continue here.
+                            psi_add = psi_array_ET_more[the_index] if accurate else psi_array_ET[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation(6.08453, 50.77234)))) # Somewhere in Aachen.
+                        thetheta_dets.append(theta_add)
+                        thephi_dets.append(phi_add)
+                        theiota_dets.append(iota_add)
+                        thepsi_dets.append(psi_add)
+                    therho2=np.diagonal(rho_sq_network_array[:,the_index])
+                    therho2_dets = [] # List to hold individual detector SNRs.
+                    #freq_sigma2 = []
+                    for i, rho_sq in enumerate(rho_sq_array):
+                        therho2_dets.append(np.diagonal(rho_sq[:, the_index]))
+                    #for i, freq_sig2 in enumerate(frequency_sig):
+                    #    freq_sigma2.append(np.diagonal(freq_sig2[:, the_index]))
+                    areas = np.empty(m1.size) # Array to hold the areas.
+                    sigma_t = np.empty((m1.size, len(name))) # Array to hold the time errors. For use in area calculation.
+                    for i, rho2 in enumerate(therho2_dets):
+                        sigma_t[:, i] = sig_t(np.sqrt(rho2), np.sqrt(frequency_sig[i]))
+                    for i in range(m1.size):
+                        s = []
+                        for j in range(len(name)):
+                            s.append(sigma_t[i, j])
+                        M = m(r_dets, s)
+                        r = R_from_theta_phi(thetheta[i], thephi[i])
+                        areas[i] = area(r, M, .9)
+                    return [np.mean(heav_array,axis=1), thetheta, thephi, theiota, thepsi, therho2, areas, thetheta_dets, thephi_dets, theiota_dets, thepsi_dets]
+                else:
+                    return np.mean(heav_array,axis=1)
+
+            else:
+                rho_sq_array = [] # List to hold individual detector SNR^2 values.
+                for i, rho_sq in enumerate(rho_sq_core_value):
+                    rho_sq_array.append(np.array(4.*A_array[i]**2*rho_sq))
+
+                rho_sq_network_array = 0 # Numpy array to hold the network SNR^2 values.
+                for i, rho_sq in enumerate(rho_sq_array):
+                    rho_sq_network_array += rho_sq
+
+                heav_array = np.heaviside(rho_sq_network_array-rho_cri**2,0)
+                if withangles==True:
+                    good_indice= np.argwhere(heav_array==1)
+                    #print(good_indice)#debugs
+                    the_index=np.random.choice(good_indice)#change to one dimensional .flatten()
+                    thetheta=theta_array_more[the_index] if accurate else theta_array[the_index]
+                    thephi=varphi_array_more[the_index] if accurate else varphi_array[the_index]
+                    theiota=iota_array_more[the_index] if accurate else iota_array[the_index]
+                    thepsi=psi_array_more[the_index] if accurate else psi_array[the_index]
+                    thetheta_dets = [] # List to hold individual detector thetas.
+                    thephi_dets = [] # List to hold individual detector phis.
+                    theiota_dets = [] # List to hold individual detector iotas.
+                    thepsi_dets = [] # List to hold individual detector psis.
+                    r_dets = [] # List to hold the detector locations in light seconds.
+                    for i, n in enumerate(name):
+                        theta_add = np.empty(the_index.size)
+                        phi_add = np.empty(the_index.size)
+                        iota_add = np.empty(the_index.size)
+                        psi_add = np.empty(the_index.size)
+                        if n == 'virgo':
+                            theta_add = theta_array_virgo_more[the_index] if accurate else theta_array_virgo[the_index] # Continue here.
+                            phi_add = varphi_array_virgo_more[the_index] if accurate else varphi_array_virgo[the_index] # Continue here.
+                            iota_add = iota_array_virgo_more[the_index] if accurate else iota_array_virgo[the_index] # Continue here.
+                            psi_add = psi_array_virgo_more[the_index] if accurate else psi_array_virgo[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('Virgo'))))
+                        if n == 'hanford':
+                            theta_add = theta_array_hanford_more[the_index] if accurate else theta_array_hanford[the_index] # Continue here.
+                            phi_add = varphi_array_hanford_more[the_index] if accurate else varphi_array_hanford[the_index] # Continue here.
+                            iota_add = iota_array_hanford_more[the_index] if accurate else iota_array_hanford[the_index] # Continue here.
+                            psi_add = psi_array_hanford_more[the_index] if accurate else psi_array_hanford[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LHO_4k'))))
+                        if n == 'livingston':
+                            theta_add = theta_array_livingston_more[the_index] if accurate else theta_array_livingston[the_index] # Continue here.
+                            phi_add = varphi_array_livingston_more[the_index] if accurate else varphi_array_livingston[the_index] # Continue here.
+                            iota_add = iota_array_livingston_more[the_index] if accurate else iota_array_livingston[the_index] # Continue here.
+                            psi_add = psi_array_livingston_more[the_index] if accurate else psi_array_livingston[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LLO_4k'))))
+                        if n == 'kagra':
+                            theta_add = theta_array_kagra_more[the_index] if accurate else theta_array_kagra[the_index] # Continue here.
+                            phi_add = varphi_array_kagra_more[the_index] if accurate else varphi_array_kagra[the_index] # Continue here.
+                            iota_add = iota_array_kagra_more[the_index] if accurate else iota_array_kagra[the_index] # Continue here.
+                            psi_add = psi_array_kagra_more[the_index] if accurate else psi_array_kagra[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('KAGRA'))))
+                        if n == 'et':
+                            theta_add = theta_array_ET_more[the_index] if accurate else theta_array_ET[the_index] # Continue here.
+                            phi_add = varphi_array_ET_more[the_index] if accurate else varphi_array_ET[the_index] # Continue here.
+                            iota_add = iota_array_ET_more[the_index] if accurate else iota_array_ET[the_index] # Continue here.
+                            psi_add = psi_array_ET_more[the_index] if accurate else psi_array_ET[the_index] # Continue here.
+                            r_dets.append(m_to_ls(EL_to_np(EarthLocation(6.08453, 50.77234)))) # Somewhere in Aachen.
+                        thetheta_dets.append(theta_add)
+                        thephi_dets.append(phi_add)
+                        theiota_dets.append(iota_add)
+                        thepsi_dets.append(psi_add)
+                    therho2=rho_sq_array[the_index]
+                    therho2_dets = [] # List to hold individual detector SNRs.
+                    #freq_sigma2 = []
+                    for i, rho_sq in enumerate(rho_sq_array):
+                        therho2_dets.append(np.diagonal(rho_sq[:, the_index]))
+                    #for i, freq_sig2 in enumerate(frequency_sig):
+                    #    freq_sigma2.append(np.diagonal(freq_sig2[:, the_index]))
+                    areas = np.empty(m1.size) # Array to hold the areas.
+                    sigma_t = np.empty((m1.size, len(name))) # Array to hold the time errors. For use in area calculation.
+                    for i, rho2 in enumerate(therho2_dets):
+                        sigma_t[:, i] = sig_t(np.sqrt(rho2), np.sqrt(frequency_sig[i]))
+                    for i in range(m1.size):
+                        s = []
+                        for j in range(len(name)):
+                            s.append(sigma_t[i, j])
+                        M = m(r_dets, s)
+                        r = R_from_theta_phi(thetheta[i], thephi[i])
+                        areas[i] = area(r, M, .9)
+
+                    #frint("my here! debugging")
+                    return [np.mean(heav_array), thetheta, thephi, theiota, thepsi, therho2, areas, thetheta_dets, thephi_dets, theiota_dets, thepsi_dets]
+                else:
+                    return np.mean(heav_array)
+    #def density_det(self, T, z, m1, m2, rho_cri, ant_fun, noise_tab,accurate, name=None, withangles=False): # Changes/Alternative needed.
+        """
+        The parameter distribution of detected sources.
+
+        Parameters:
+          T (float): Observation time, in unit of minute
+          z (array of floats): The redshift of the GW source, m1 and m2 should be in the same dimension with z
+          m1 (array of floats): Red-shifted masses of the BHB
+          m2 (array of floats): Red-shifted masses of the BHB
+          chi (float): spin
+          rho_cri (float): The detection SNR threshold
+          ant_fun (function): antenna pattern
+          noise_tab (array of dtype float): noise function for detector
+
+        Returns:
+          (array of floats): Number density of detection, same length with z array.
+        """
+        #print("Calculating density_det")
+       # T_year = (T*u.min).to(u.a).value # T in unit of minuts
+       # return 4.*np.pi*T_year*self.cos_mer_rate(z, m1, m2)*self.tel_fun(z,m1,m2, rho_cri,ant_fun,noise_tab,accurate, name, withangles)*self.cosmos.differential_comoving_volume(z).to_value(u.Gpc**3/u.sr)/(1+z)
+        #return T_year*self.cos_mer_rate(z, m1, m2, chi)
+        #return self.cosmos.differential_comoving_volume(z).to_value(u.Gpc**3/u.sr)
+    def tot_num(self, T, rho_cri, ant_fun, noise_tab, generation, name): # No changes needed.
+        #z_ranges = ranges[0]
+        #m1_ranges = ranges[1]
+        #m2_ranges = ranges[2]
+        #chi_ranges = ranges[3]
+        #x=1,1000,T,rho_cri,ant_fun,noise_tab
+        network = isinstance(ant_fun, list) # Checks whether a network is being employed.
+        if not network:
+            if generation=='2G':
+                #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
+                dnz=self.density_det(T, z_array_ligo_DNS, m1_array_ligo_DNS, m2_array_ligo_DNS, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(1e-2-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # 0.2*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(1e-1-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20.
+                results=sumation
+            elif generation=='3G':
+                dnz=self.density_det(T, z_array_et_DNS, m1_array_et_DNS, m2_array_et_DNS, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20.
+                results=sumation
+            else:
+                dnz=self.density_det(T, z_array_med_DNS, m1_array_med_DNS, m2_array_med_DNS, rho_cri, ant_fun, noise_tab,accurate=True)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(0.5-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+            #if z_ranges[1]<=3:
+            #    result=self.giveave_local(x)
+            #else:
+            #    result=self.giveave_universe(x)
+            #return np.random.poisson(lam=results)
+        if network:
+            if '3G' in generation:
+                dnz=self.density_det(T, z_array_et_DNS, m1_array_et_DNS, m2_array_et_DNS, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+            elif 'med' in generation:
+                dnz=self.density_det(T, z_array_med_DNS, m1_array_med_DNS, m2_array_med_DNS, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(5-1e-2)/10.*(2.5-1)/20.*(2.5-1)/20. # 1*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(0.5-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+            elif '2G' in generation:
+                #results=pool.map(self.giveave_local, [x1,x2,x3,x4])
+                dnz=self.density_det(T, z_array_ligo_DNS, m1_array_ligo_DNS, m2_array_ligo_DNS, rho_cri, ant_fun, noise_tab,accurate=True, name=name)
+                #sumation=0
+                #for i in range(11):
+                #    for j in range(21):
+                #        for k in range(j+1):
+                #            index=int(i*21*22/2+j*(j+1)/2+k)
+                #            sumation+=dnz[index]*(1e-2-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # 0.2*1*1 is the volume element in the parmaeter space
+                sumation=np.sum(dnz)*(1e-1-1e-4)/10.*(2.5-1)/20.*(2.5-1)/20. # DO THESE NUMBERS NEED CHANGING?
+                results=sumation
+        return results
+    def MCMCsample(self, n_sources, inits, T, rho_cri, ant_fun, noise_tab, name=None, withangles=False):
+        """
+            The parallel Markov-chain-Monte-Carlo sampling.
+            DNS
+        """
+        func=self.density_det
+        n_cores=3
+        if n_sources<=10:
+            n_larger=50*n_sources
+        else:
+            n_larger=n_sources
+        n_sample=int(n_larger/n_cores)+1
+        ps=[]
+        for i in range(n_cores):
+            p=[func, n_sample, inits,T,rho_cri, ant_fun, noise_tab, name, withangles, self.cosmos,i*100, self.chi_sigma]
+            ps.append(p)
+        pool=Pool(n_cores)
+        traces=pool.map(mcmcunit_scout_bhbh, ps) # _old is the tranditional Metroplis-Hastling sampling, and w/o _old is Gibbs sampling.
+        # multiprocessing, parallel running with three cores.
+        trace_all=np.concatenate(tuple(traces),axis=1)
+        cata_all=trace_all[:,np.random.choice(np.arange(len(trace_all[0])),size=n_sources,replace=False)]
+        pool.close()
+        return cata_all
+class Background(BG_DNS):
     """
     This is the source population originated from the background noises. (fake signals)
     """
@@ -1464,6 +2831,7 @@ class Background(DNS):
         """
         Rn=self.theta[0]
         alpha=self.theta[1]
+        #D_ref_Mch_ref=self.theta[2]
         D_ref=self.theta[2] # Mpc
         D=self.cosmos.luminosity_distance(z).value
         P=Rn*np.exp(-8*(D_ref/D-1)/alpha)*(D_ref/D**2)*dDovdz(z, self.cosmos)
@@ -1483,8 +2851,9 @@ class Background(DNS):
         rate=self.R(z)*self.massfunction(m1)*self.massfunction(m2)
         return rate
 
-    def tot_num(self, T, rho_cri, ant_fun, noise_tab, generation):
+    def tot_num(self, T, rho_cri, ant_fun, noise_tab, generation, name):
         """
+        Revised for network
         The total number of sources detected.
 
         Parameters:
@@ -1501,7 +2870,7 @@ class Background(DNS):
         z_array_bg = para_IS_bg[:,0]
         m1_array_bg = para_IS_bg[:,1]
         m2_array_bg = para_IS_bg[:,2]
-        dnz=self.density_det(T, z_array_bg, m1_array_bg, m2_array_bg, rho_cri, ant_fun, noise_tab,accurate=True)*z_array_bg
+        dnz=self.density_det(T, z_array_bg, m1_array_bg, m2_array_bg, rho_cri, ant_fun, noise_tab,accurate=True, name=name)*z_array_bg
         #sumation=0
         #for i in range(11):
         #    for j in range(53):
