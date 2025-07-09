@@ -908,7 +908,7 @@ class Tools:
                     theta1=df_kilo['theta'][j]
                     varphi1=df_kilo['varphi'][j]
                     angel1=np.arccos(np.cos(theta)*np.cos(theta1)*np.cos(varphi-varphi1)+np.sin(theta)*np.sin(theta1))
-                    angel2=np.sqrt(area*(np.pi/180)**2/np.pi)+5*np.pi/180 #后一项是sGRB的定位误差，假设有5度
+                    angel2=np.sqrt(area*(np.pi/180)**2/np.pi)+5*np.pi/180
                     if -2<=(df_kilo['time'][j]-Time)<=10 and angel1<=angel2:
                         gwi_emc.append(j)
                         emc.remove(j)
