@@ -340,18 +340,44 @@ class Tools:
         """
         Return the sensitivity curve (frequency, sqrt(power)) of the detector.
         """
-        freq, power=self.noise
-        return [freq, np.sqrt(power)]
+        sen_curve = []
+        if self.network:
+            for noise in self.noise:
+                freq, power=noise
+                sen_curve.append([freq, np.sqrt(power)])
+        else:  # If a network is being used, return the sensitivity curve of the first detector.
+            freq, power=self.noise
+            sen_curve=[freq, np.sqrt(power)]
+        return sen_curve
     def sensitivity_curve_sjoerd(self):
         """
         Return the sensitivity curve of the experiment using default detector settings.
         """
-        detector_class = type(self.detector)
-        default_type = self.detector_type[:-5]
-        default_detector = detector_class(default_type)
-        default_noise = default_detector.noise_curve()
-        freq, power=default_noise
-        return [freq, np.sqrt(power)]
+        sen_curve = []
+        if self.network:
+            for detector,detector_type in zip(self.detector, self.detector_type):
+                if detector_type[-5:] == '-like':
+                    detector_class = type(detector)
+                    default_type = detector_type[:-5]
+                    default_detector = detector_class(default_type)
+                    default_noise = default_detector.noise_curve()
+                    freq, power=default_noise
+                    sen_curve.append([freq, np.sqrt(power)])
+                else:
+                    freq, power=detector.noise_curve()
+                    sen_curve.append([freq, np.sqrt(power)])
+        else:
+            if self.detector_type[-5:] == '-like':
+                detector_class = type(self.detector)
+                default_type = self.detector_type[:-5]
+                default_detector = detector_class(default_type)
+                default_noise = default_detector.noise_curve()
+                freq, power=default_noise
+                sen_curve=[freq, np.sqrt(power)]
+            else:
+                freq, power=self.detector.noise_curve()
+                sen_curve=[freq, np.sqrt(power)]
+        return sen_curve
 
     def _list_params(self, time_obs=TIME_OBS_EARTH, rho_cri=RHO_CRIT_EARTH, size=None, dtp=False, withangles=False, witherrors=False):
         """
