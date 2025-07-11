@@ -3,6 +3,9 @@
 
 from pkg_resources import resource_filename
 
+import astropy.utils.data as aud
+aud.conf.show_progress = False
+
 from astropy import units as u
 from astropy.coordinates import EarthLocation
 import numpy as np
