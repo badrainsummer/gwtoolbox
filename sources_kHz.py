@@ -870,31 +870,21 @@ class BHB:
         #calculate the signal to noise ratio for HL network for background model
         #eta=1
         Mch = (m1*m2)**(0.6)/(m1+m2)**(0.2)
-        F = []
-        A_array = []
-        for i, ant in enumerate(ant_fun):
-            #F.append(ant[1](transform_angles(theta, varphi, psi, name=ant[0])[0], transform_angles(theta=theta, varphi=varphi, psi=psi, name=ant[0])[1], transform_angles(theta=theta, varphi=varphi, psi=psi, name=ant[0])[2]))
-            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, name=name[i])
-            F.append(ant(theta_new, varphi_new, psi_new))
-            #F.append(ant(theta, varphi, psi))
-            A_array.append(self.mod_norm(Mch*(1+z), F[i], iota, z))
+        if name in ['virgo','hanford','livingston','KAGRA']:
+            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, name=name)
+        else:
+            theta_new, varphi_new, psi_new = theta, varphi, iota
+        F = ant_fun(theta_new, varphi_new, psi_new)
+        A_array = self.mod_norm(Mch*(1+z), F, iota, z)
 
         f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
         f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
         f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
         freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
         f1=f_up
-        rho_sq_core_value = []
-        for i, noise in enumerate(noise_tab):
-            #merger and ringdown not effect rho_sq
-            rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))
-            #rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up))
-        rho_sq_array=[]
-        for i, rho_sq in enumerate(rho_sq_core_value):
-            rho_sq_array.append(np.array(4.*A_array[i]**2*rho_sq))
-        rho_sq_network_array = 0 # Numpy array to hold the network SNR^2 values.
-        for i, rho_sq in enumerate(rho_sq_array):
-            rho_sq_network_array += rho_sq
+        rho_sq_core_value = rho_sq_core(noise_tab, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise_tab, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise_tab, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)
+        rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
+        rho_sq_network_array = rho_sq_array
         return np.sqrt(rho_sq_network_array)
 
     def area_snr(self, z, m1, m2, theta, varphi, psi, iota, ant_fun, noise_tab, name):

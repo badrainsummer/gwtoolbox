@@ -543,7 +543,7 @@ class Tools:
           theta (tuple): (z, D, chi, m1, m2)
 
         Returns:
-          array: SNR squared values.
+          array: SNR values.
         """
         ## individual SNR earth
         z, D, chi, m1, m2 = theta
@@ -575,11 +575,11 @@ class Tools:
                 F = detector.ante_pattern(theta_array, varphi_array, psi_array)
                 A_array = population.mod_norm(Mch*(1+z), F, iota_array, z)
 
-                rho_sq_array.append(np.array(4.*A_array**2*rho_sq_core_value))
+                rho_sq_array.append(np.sqrt(np.array(4.*A_array**2*rho_sq_core_value)))
         else:
             detector = self.detector
             noise = self.noise
-            population = BHB(self.cosmos)
+            population = self.population_class
 
             f_up = population.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
             f2=population.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
@@ -597,7 +597,7 @@ class Tools:
             F = detector.ante_pattern(theta_array, varphi_array, psi_array)
             A_array = population.mod_norm(Mch*(1+z), F, iota_array, z)
 
-            rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
+            rho_sq_array = np.sqrt(np.array(4.*A_array**2*rho_sq_core_value))
         return rho_sq_array
 
 
@@ -608,7 +608,7 @@ class Tools:
         # errs = population.errors_FIM(1,params,noise)
         # print(errs)
     
-    def create_BNScatalog(self, T=525600, popu=[50,3,1.4,0.5,1.1,2.5,0.1], pathname=None):
+    def create_BNScatalog(self, T=525600, pathname=None):
         """
         Create a BNS catalog.
 
@@ -621,6 +621,7 @@ class Tools:
           pd.DataFrame: BNS catalog.
         """
         Ti=T/525600 #year
+        popu = self.population_class.theta
         R0=popu[0]    
         def rm(z):
             y=4*np.pi*Ti*R0*R(z, 2.7, 5.6, 2.9, tau=popu[1], cosmos=self.cosmos)*self.cosmos.differential_comoving_volume(z).to_value(u.Gpc**3/u.sr)/(1+z)
@@ -651,16 +652,24 @@ class Tools:
         
         DIS=self.cosmos.luminosity_distance(PZ).value
         Time=np.random.randint(0,T,size=N)
-        #print(DIS)
-        rho=[]
-        area=[]
-        for i in range(N):
-            re1, re2 = BHB(self.cosmos).area_snr(z=PZ[i], m1=pm1[i], m2=pm2[i], theta=theta[i], varphi=varphi[i], iota=iota[i], psi=psi[i], ant_fun=self.ant_pat, noise_tab=self.noise, name=self.detector_type)
-            rho.append(re1)
-            area.append(re2)
-        dD=np.array(DIS)/rho
-        column_names = ['z', 'D', 'm1', 'm2', 'rho', 'theta', 'varphi', 'inc', 'psi', 'area', 'dD', 'time']
-        df_BNS=pd.DataFrame([PZ, DIS, pm1, pm2, rho, theta, varphi, iota, psi, area, dD, Time],index=column_names).T
+        if self.network:
+            rho=[]
+            area=[]
+            for i in range(N):
+                re1, re2 = BHB(self.cosmos).area_snr(z=PZ[i], m1=pm1[i], m2=pm2[i], theta=theta[i], varphi=varphi[i], iota=iota[i], psi=psi[i], ant_fun=self.ant_pat, noise_tab=self.noise, name=self.detector_type)
+                rho.append(re1)
+                area.append(re2)
+            dD=np.array(DIS)/rho
+            column_names = ['z', 'D', 'm1', 'm2', 'rho', 'theta', 'varphi', 'inc', 'psi', 'area', 'dD', 'time']
+            df_BNS=pd.DataFrame([PZ, DIS, pm1, pm2, rho, theta, varphi, iota, psi, area, dD, Time],index=column_names).T
+        else:
+            rho=[]
+            for i in range(N):
+                re1 = BHB(self.cosmos).snr(z=PZ[i], m1=pm1[i], m2=pm2[i], theta=theta[i], varphi=varphi[i], iota=iota[i], psi=psi[i], ant_fun=self.ant_pat, noise_tab=self.noise, name=self.detector_type)
+                rho.append(re1)
+            dD=np.array(DIS)/rho
+            column_names = ['z', 'D', 'm1', 'm2', 'rho', 'theta', 'varphi', 'inc', 'psi', 'dD', 'time']
+            df_BNS=pd.DataFrame([PZ, DIS, pm1, pm2, rho, theta, varphi, iota, psi, dD, Time],index=column_names).T
         self.BNScatalog = df_BNS
         if pathname:
             df_BNS.to_csv(f'{pathname}.csv')
@@ -690,20 +699,32 @@ class Tools:
         varphi=np.random.uniform(0,2*np.pi,size=int(bg_number))
         psi=np.random.uniform(0,np.pi,size=int(bg_number))
         iota=np.arccos(np.random.uniform(0,1,size=int(bg_number)))
-        SNR, DIS=[], []
-        for i, dis in enumerate(Dis):
-            SNR.append(BHB(self.cosmos).SNR(z=z_at_value(self.cosmos.luminosity_distance, Dis[i]*u.Mpc).value, Mch=Mch[i], theta=theta[i], varphi=varphi[i], iota=iota[i], psi=psi[i], name=self.detector_type, ant_fun=self.ant_pat, noise_tab=self.noise))
-            DIS.append(Dis[i]*SNR[i]/rho)
-        Z=z_at_value(self.cosmos.luminosity_distance, DIS*u.Mpc).value
-        m1=Mch*2.0**0.2
-        m2=m1
-        dD=np.array(DIS)/rho
-        area=[]
-        for i in range(int(bg_number)):
-            re1, re2 = BHB(self.cosmos).area_snr(z=Z[i], m1=m1[i], m2=m2[i], theta=theta[i], varphi=varphi[i], iota=iota[i], psi=psi[i], ant_fun=self.ant_pat, noise_tab=self.noise, name=self.detector_type)
-            area.append(re2)
-        column_names = ['z', 'D', 'm1', 'm2', 'theta', 'varphi', 'inc', 'psi', 'area', 'dD', 'time']
-        df=pd.DataFrame([Z, DIS, m1, m2, theta, varphi, iota, psi, area, dD, Time],index=column_names).T
+        if self.network:
+            DIS=[]
+            for i, dis in enumerate(Dis):
+                SNR = BHB(self.cosmos).SNR(z=z_at_value(self.cosmos.luminosity_distance, dis*u.Mpc).value, Mch=Mch[i], theta=theta[i], varphi=varphi[i], iota=iota[i], psi=psi[i], name=self.detector_type, ant_fun=self.ant_pat, noise_tab=self.noise)
+                DIS.append(dis*SNR/rho)
+            Z=z_at_value(self.cosmos.luminosity_distance, DIS*u.Mpc).value
+            m1=Mch*2.0**0.2
+            m2=m1
+            dD=np.array(DIS)/rho
+            area=[]
+            for i in range(int(bg_number)):
+                re1, re2 = BHB(self.cosmos).area_snr(z=Z[i], m1=m1[i], m2=m2[i], theta=theta[i], varphi=varphi[i], iota=iota[i], psi=psi[i], ant_fun=self.ant_pat, noise_tab=self.noise, name=self.detector_type)
+                area.append(re2)
+            column_names = ['z', 'D', 'm1', 'm2', 'theta', 'varphi', 'inc', 'psi', 'area', 'dD', 'time']
+            df=pd.DataFrame([Z, DIS, m1, m2, theta, varphi, iota, psi, area, dD, Time],index=column_names).T
+        else:
+            m1=Mch*2.0**0.2
+            m2=m1
+            DIS=[]
+            for i, dis in enumerate(Dis):
+                SNR = BHB(self.cosmos).snr(z=z_at_value(self.cosmos.luminosity_distance, dis*u.Mpc).value, m1=m1[i], m2=m2[i], theta=theta[i], varphi=varphi[i], iota=iota[i], psi=psi[i], name=self.detector_type, ant_fun=self.ant_pat, noise_tab=self.noise)
+                DIS.append(dis*SNR/rho)
+            Z=z_at_value(self.cosmos.luminosity_distance, DIS*u.Mpc).value
+            dD=np.array(DIS)/rho
+            column_names = ['z', 'D', 'm1', 'm2', 'theta', 'varphi', 'inc', 'psi', 'dD', 'time']
+            df=pd.DataFrame([Z, DIS, m1, m2, theta, varphi, iota, psi, dD, Time],index=column_names).T
         if pathname:
             df.to_csv(f'{pathname}.csv')
         return df
@@ -721,24 +742,43 @@ class Tools:
         """
         df_BNS=self.BNScatalog[self.BNScatalog['z']<=0.4].reset_index(drop=True)
         N=len(df_BNS)
-        z,D,m1,m2,rho,theta,varphi,inc,psi,area,dD,time=[],[],[],[],[],[],[],[],[],[],[],[]
-        for i in range(N):
-            re1, re2 = BHB(self.cosmos).area_snr(z=df_BNS['z'][i], m1=df_BNS['m1'][i], m2=df_BNS['m2'][i], theta=df_BNS['theta'][i], varphi=df_BNS['varphi'][i], iota=df_BNS['inc'][i], psi=df_BNS['psi'][i], ant_fun=self.ant_pat, noise_tab=self.noise, name=self.detector_type)
-            if re1>=rho_cri:
-                z.append(df_BNS.iloc[i]['z'])
-                D.append(df_BNS.iloc[i]['D'])
-                m1.append(df_BNS.iloc[i]['m1'])
-                m2.append(df_BNS.iloc[i]['m2'])
-                rho.append(re1)
-                theta.append(df_BNS.iloc[i]['theta'])
-                varphi.append(df_BNS.iloc[i]['varphi'])
-                inc.append(df_BNS.iloc[i]['inc'])
-                psi.append(df_BNS.iloc[i]['psi'])
-                area.append(re2)
-                dD.append(df_BNS.iloc[i]['D']/re1)
-                time.append(df_BNS.iloc[i]['time'])
-        column_names = ['z', 'D', 'm1', 'm2', 'rho', 'theta', 'varphi', 'inc', 'psi', 'area', 'dD', 'time']
-        df_gw=pd.DataFrame([z, D, m1, m2, rho, theta, varphi, inc, psi, area, dD, time],index=column_names).T
+        if self.network:
+            z,D,m1,m2,rho,theta,varphi,inc,psi,area,dD,time=[],[],[],[],[],[],[],[],[],[],[],[]
+            for i in range(N):
+                re1, re2 = BHB(self.cosmos).area_snr(z=df_BNS['z'][i], m1=df_BNS['m1'][i], m2=df_BNS['m2'][i], theta=df_BNS['theta'][i], varphi=df_BNS['varphi'][i], iota=df_BNS['inc'][i], psi=df_BNS['psi'][i], ant_fun=self.ant_pat, noise_tab=self.noise, name=self.detector_type)
+                if re1>=rho_cri:
+                    z.append(df_BNS.iloc[i]['z'])
+                    D.append(df_BNS.iloc[i]['D'])
+                    m1.append(df_BNS.iloc[i]['m1'])
+                    m2.append(df_BNS.iloc[i]['m2'])
+                    rho.append(re1)
+                    theta.append(df_BNS.iloc[i]['theta'])
+                    varphi.append(df_BNS.iloc[i]['varphi'])
+                    inc.append(df_BNS.iloc[i]['inc'])
+                    psi.append(df_BNS.iloc[i]['psi'])
+                    area.append(re2)
+                    dD.append(df_BNS.iloc[i]['D']/re1)
+                    time.append(df_BNS.iloc[i]['time'])
+            column_names = ['z', 'D', 'm1', 'm2', 'rho', 'theta', 'varphi', 'inc', 'psi', 'area', 'dD', 'time']
+            df_gw=pd.DataFrame([z, D, m1, m2, rho, theta, varphi, inc, psi, area, dD, time],index=column_names).T
+        else:
+            z,D,m1,m2,rho,theta,varphi,inc,psi,dD,time=[],[],[],[],[],[],[],[],[],[],[]
+            for i in range(N):
+                re1 = BHB(self.cosmos).snr(z=df_BNS['z'][i], m1=df_BNS['m1'][i], m2=df_BNS['m2'][i], theta=df_BNS['theta'][i], varphi=df_BNS['varphi'][i], iota=df_BNS['inc'][i], psi=df_BNS['psi'][i], ant_fun=self.ant_pat, noise_tab=self.noise, name=self.detector_type)
+                if re1>=rho_cri:
+                    z.append(df_BNS.iloc[i]['z'])
+                    D.append(df_BNS.iloc[i]['D'])
+                    m1.append(df_BNS.iloc[i]['m1'])
+                    m2.append(df_BNS.iloc[i]['m2'])
+                    rho.append(re1)
+                    theta.append(df_BNS.iloc[i]['theta'])
+                    varphi.append(df_BNS.iloc[i]['varphi'])
+                    inc.append(df_BNS.iloc[i]['inc'])
+                    psi.append(df_BNS.iloc[i]['psi'])
+                    dD.append(df_BNS.iloc[i]['D']/re1)
+                    time.append(df_BNS.iloc[i]['time'])
+            column_names = ['z', 'D', 'm1', 'm2', 'rho', 'theta', 'varphi', 'inc', 'psi', 'dD', 'time']
+            df_gw=pd.DataFrame([z, D, m1, m2, rho, theta, varphi, inc, psi, dD, time],index=column_names).T
         if pathname:
             df_gw.to_csv(f'{pathname}.csv')
         return df_gw
@@ -781,7 +821,7 @@ class Tools:
             df_kilo.to_csv(f'{pathname}.csv')
         return df_kilo
 
-    def create_sgrbcatalog(self,flim=2*10**(-7), lam=0.6, pathname=None):
+    def create_sgrbcatalog(self,flim=2*10**(-7), lam=0.6, L_star=2e52, thetacs_dis=[5*np.pi/180,2*np.pi/180], pathname=None):
         """
         Create an sGRB catalog.
 
@@ -794,8 +834,7 @@ class Tools:
           pd.DataFrame: sGRB catalog.
         """
         N=len(self.BNScatalog)
-        def Pdet_sgrb(z, thetav, thetac, flim=flim, lam=lam):
-            L_star=2*10**52
+        def Pdet_sgrb(z, thetav, thetac, flim=flim, lam=lam, L_star=L_star):
             L_lim=flim*(4*np.pi)**2*(self.cosmos.comoving_distance(z=z).to_value(u.cm))**2*np.exp(thetav**2/thetac**2)
             if L_star>L_lim:
                 pvalue=np.log(L_star/L_lim)+1
@@ -804,9 +843,12 @@ class Tools:
                 pvalue1=L_star/L_lim
                 return pvalue1/(15.5-np.log((2*10**(-7)/flim)))*lam*20
         z,D,m1,m2,theta,varphi,inc,psi,time,thetac=[],[],[],[],[],[],[],[],[],[]
+        [mu, sigma] = thetacs_dis
+        lower, upper = 0, np.pi/2
+        a, b = (lower - mu) / sigma, (upper - mu) / sigma
         for i in range(N):
             random1=np.random.uniform(0,1)
-            thetacs=np.random.normal(5*np.pi/180, 2*np.pi/180)
+            thetacs = truncnorm.rvs(a, b, loc=mu, scale=sigma)
             if Pdet_sgrb(z=self.BNScatalog['z'][i],thetav=self.BNScatalog['inc'][i], thetac=thetacs)>=random1:
                 z.append(self.BNScatalog.iloc[i]['z'])
                 D.append(self.BNScatalog.iloc[i]['D'])
@@ -834,6 +876,8 @@ class Tools:
         Returns:
           pd.DataFrame: Results of coincidence simulation.
         """
+        if not self.network:
+            raise ValueError('Only network detector could have GW-EM coincidence')
         MISID=[]
         rho_list = np.linspace(8.0,9.3,14)
         df_kilo = self.create_kilonovacatalog(z1=0.067,z2=0.056)
@@ -896,6 +940,8 @@ class Tools:
         Returns:
           pd.DataFrame: Results of coincidence simulation.
         """
+        if not self.network:
+            raise ValueError('Only network detector could have GW-EM coincidence')
         MISID=[]
         rho_list = np.linspace(8.0,9.3,14)
         df_kilo = self.create_sgrbcatalog(flim=2*10**(-8), lam=1)
