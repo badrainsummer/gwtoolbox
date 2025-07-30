@@ -491,7 +491,10 @@ class Tools:
         dtbs=dataframe['dtb']
         det=self.detector
         pop=self.population_class
-        iotas=give_iota(det, pop, dtbs)
+        if self.network:
+            iotas=give_iota(det[0], pop, dtbs)
+        else:
+            iotas=give_iota(det, pop, dtbs)
         dataframe['inc']=iotas
         return dataframe
 
