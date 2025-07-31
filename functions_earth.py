@@ -780,8 +780,13 @@ def give_iota(det, pop, dtb):
     varphi=np.random.uniform(0,2*np.pi,size=N)
     psi=np.random.uniform(0,np.pi,size=N)
     iota=np.arccos(np.random.uniform(0,1,size=N))
-    F=det.ante_pattern(theta=theta,varphi=varphi,psi=psi)
-    scal_factors=pop.mod_norm(1,F, iota, 1)
+    if not isinstance(det, list):
+        det = [det]
+    scal_factors = 0
+    for d in det:
+        F=d.ante_pattern(theta=theta,varphi=varphi,psi=psi)
+        scal_factors+=pop.mod_norm(1,F, iota, 1)**2
+    scal_factors = np.sqrt(scal_factors)
     indice=np.argsort(scal_factors)
     if np.isscalar(dtb):
         index=np.random.choice(indice[1-int(len(indice)*dtb):])

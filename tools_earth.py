@@ -404,7 +404,6 @@ class Tools:
                     samples=np.vstack((samples,thetheta, thevarphi, theiota, thepsi, np.sqrt(therho2), area, dtps))
                 else:
                     samples=np.vstack((samples,thetheta, thevarphi, theiota, thepsi, np.sqrt(therho2), area))
-                loc = [thetheta_dets, thephi_dets, theiota_dets, thepsi_dets]
         elif dtp:
             z=np.array(samples[1,:])
             m1=np.array(samples[2,:])
@@ -417,10 +416,7 @@ class Tools:
             else:
                 errors = self.population_class.errors_FIM(self.number, samples, self.noise)
             samples=np.vstack((samples,errors))
-        if self.network and withangles:
-            return samples, loc
-        else:
-            return samples
+        return samples
 
     def list_params(self, time_obs=TIME_OBS_EARTH, rho_cri=RHO_CRIT_EARTH, size=None, dtp=False, withangles=False, witherrors=False):
         """
@@ -437,10 +433,7 @@ class Tools:
         Returns:
           DataFrame or (DataFrame, loc) if network and withangles.
         """
-        if self.network and withangles:
-            cata, loc = self._list_params(time_obs=time_obs, rho_cri=rho_cri, size=size, dtp=dtp, withangles=withangles, witherrors=witherrors)
-        else:
-            cata = self._list_params(time_obs=time_obs, rho_cri=rho_cri, size=size, dtp=dtp, withangles=withangles, witherrors=witherrors)
+        cata = self._list_params(time_obs=time_obs, rho_cri=rho_cri, size=size, dtp=dtp, withangles=withangles, witherrors=witherrors)
         cata = cata.transpose()
         keys = ['z','D','m1','m2','χ']
         if withangles:
@@ -473,10 +466,7 @@ class Tools:
         cols = list(range(1,cata.shape[1]))
         cols[:5] = [1, 5, 2, 3, 4]
         df=pd.DataFrame(data=cata[:,cols], columns=keys)
-        if self.network and withangles:
-            return df, loc
-        else:
-            return df
+        return df
 
     def list_with_iota(self, dataframe):
         """
@@ -491,10 +481,7 @@ class Tools:
         dtbs=dataframe['dtb']
         det=self.detector
         pop=self.population_class
-        if self.network:
-            iotas=give_iota(det[0], pop, dtbs)
-        else:
-            iotas=give_iota(det, pop, dtbs)
+        iotas=give_iota(det, pop, dtbs)
         dataframe['inc']=iotas
         return dataframe
 
@@ -611,7 +598,7 @@ class Tools:
         # errs = population.errors_FIM(1,params,noise)
         # print(errs)
     
-    def create_BNScatalog(self, T=525600, pathname=None):
+    def create_BNScatalog(self, T=525600, N=None, pathname=None):
         """
         Create a BNS catalog.
 
@@ -629,11 +616,11 @@ class Tools:
         def rm(z):
             y=4*np.pi*Ti*R0*R(z, 2.7, 5.6, 2.9, tau=popu[1], cosmos=self.cosmos)*self.cosmos.differential_comoving_volume(z).to_value(u.Gpc**3/u.sr)/(1+z)
             return y
-        def tot_bns_number(z):
-            result, error = integrate.quad(rm, 0, z, epsabs=1e-1)
-            return int(result)
-        N=tot_bns_number(z=3)
-        # print(N)
+        if not N:
+            def tot_bns_number(z):
+                result, error = integrate.quad(rm, 0, z, epsabs=1e-1)
+                return int(result)
+            N=tot_bns_number(z=3)
         low=popu[4]
         loc=popu[2]
         high=popu[5]
