@@ -834,7 +834,7 @@ class BHB:
         #return lambda f,i,j:list_partial[i](f)*list_partial[j](f)*self.mod_shape(f)**2*A**2
         return mat_part
 
-    def SNR(self, z, Mch, theta, varphi, iota, psi, ant_fun, name, noise_tab):
+    def SNR(self, z, Mch, theta, varphi, iota, psi, ant_fun, loc, noise_tab):
         #calculate the signal to noise ratio for HL network for background model
         #eta=1
         m1 = Mch*2.0**0.2
@@ -842,7 +842,7 @@ class BHB:
         F = []
         A_array = []
         for i, ant in enumerate(ant_fun):
-            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, name=name[i])
+            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, loc=loc[i])
             F.append(ant(theta_new, varphi_new, psi_new))
             #F.append(ant[1](transform_angles(theta, varphi, psi, name=ant[0])[0], transform_angles(theta=theta, varphi=varphi, psi=psi, name=ant[0])[1], transform_angles(theta=theta, varphi=varphi, psi=psi, name=ant[0])[2]))
             A_array.append(self.mod_norm(Mch*(1+z), F[i], iota, z))
@@ -866,84 +866,63 @@ class BHB:
         return np.sqrt(rho_sq_network_array)
 
 
-    def snr(self, z, m1, m2, theta, varphi, iota, psi, ant_fun, name, noise_tab):
+    def snr(self, z, m1, m2, chi, theta, varphi, psi, iota, time, ant_fun, loc, noise_tab):
         #calculate the signal to noise ratio for HL network for background model
         #eta=1
-        Mch = (m1*m2)**(0.6)/(m1+m2)**(0.2)
-        if name in ['virgo','hanford','livingston','KAGRA']:
-            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, name=name)
-        else:
-            theta_new, varphi_new, psi_new = theta, varphi, iota
-        F = ant_fun(theta_new, varphi_new, psi_new)
-        A_array = self.mod_norm(Mch*(1+z), F, iota, z)
-
-        f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        f1=f_up
-        rho_sq_core_value = rho_sq_core(noise_tab, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise_tab, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise_tab, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)
-        rho_sq_array = np.array(4.*A_array**2*rho_sq_core_value)
-        rho_sq_network_array = rho_sq_array
-        return np.sqrt(rho_sq_network_array)
-
-    def area_snr(self, z, m1, m2, theta, varphi, psi, iota, ant_fun, noise_tab, name):
-        r_dets=[]
-        theta_det=[]
-        varphi_det=[]
-        psi_det=[]
-        iota_det=[]
-        for i, n in enumerate(name):
-            theta_det.append(transform_angles(theta, varphi, psi, name=n)[0])
-            varphi_det.append(transform_angles(theta, varphi, psi, name=n)[1])
-            psi_det.append(transform_angles(theta, varphi, psi, name=n)[2])
-            iota_det.append(iota)
-            if n == 'virgo':
-                r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('Virgo'))))
-            if n == 'hanford':
-                r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LHO_4k'))))
-            if n == 'livingston':
-                r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('LLO_4k'))))
-            if n == 'kagra':
-                r_dets.append(m_to_ls(EL_to_np(EarthLocation.of_site('KAGRA'))))
         Mch = (m1*m2)**(0.6)/(m1+m2)**(0.2)
         F = []
         A_array = []
         for i, ant in enumerate(ant_fun):
-            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, name=name[i])
+            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, time, loc=loc[i])
             F.append(ant(theta_new, varphi_new, psi_new))
-            #F.append(ant(theta, varphi, psi))
             A_array.append(self.mod_norm(Mch*(1+z), F[i], iota, z))
 
-        f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=0)
-        freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=0)
+        f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+        f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+        f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+        freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+        f1=f_up
+        rho_sq_core_value = []
+        for i, noise in enumerate(noise_tab):
+            rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))
+        rho_sq_array=[]
+        for i, rho_sq in enumerate(rho_sq_core_value):
+            rho_sq_array.append(np.array(4.*A_array[i]**2*rho_sq))
+        rho_sq_network_array = 0
+        for i, rho_sq in enumerate(rho_sq_array):
+            rho_sq_network_array += rho_sq
+        return np.sqrt(rho_sq_network_array)
+
+    def area_snr(self, z, m1, m2, chi, theta, varphi, psi, iota, time, ant_fun, loc, noise_tab):
+        Mch = (m1*m2)**(0.6)/(m1+m2)**(0.2)
+        F = []
+        A_array = []
+        for i, ant in enumerate(ant_fun):
+            theta_new, varphi_new, psi_new = transform_angles(theta, varphi, psi, time, loc=loc[i])
+            F.append(ant(theta_new, varphi_new, psi_new))
+            A_array.append(self.mod_norm(Mch*(1+z), F[i], iota, z))
+
+        f_up = self.freq_limit(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+        f2=self.freq_limit_merger(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+        f3=self.freq_limit_ringdown(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
+        freq_sig=self.freq_sigma(m1=m1*(1+z), m2=m2*(1+z), chi=chi)
         f1=f_up
         rho_sq_core_value = []
         frequency_sig = []
         for i, noise in enumerate(noise_tab):
-            #merger and ringdown not effect rho_sq
             rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))
             frequency_sig.append((self.frequency_sigma_sq_1(noise, self.mod_shape, f_up=f_up)+self.frequency_sigma_sq_merger_1(noise, self.mod_shape_merger, f1=f1, f2=f2)+self.frequency_sigma_sq_ringdown_1(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))-((self.frequency_sigma_sq_2(noise, self.mod_shape, f_up=f_up)+self.frequency_sigma_sq_merger_2(noise, self.mod_shape_merger, f1=f1, f2=f2)+self.frequency_sigma_sq_ringdown_2(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3))/(rho_sq_core(noise, self.mod_shape, f_up=f_up)+rho_sq_core_merger(noise, self.mod_shape_merger, f1=f1, f2=f2)+rho_sq_core_ringdown(noise, self.mod_shape_ringdown,f1=f1, f2=f2, freq_sig=freq_sig, f3=f3)))**2)
-            #rho_sq_core_value.append(rho_sq_core(noise, self.mod_shape, f_up=f_up))
         rho_sq_array=[]
         for i, rho_sq in enumerate(rho_sq_core_value):
             rho_sq_array.append(np.array(4.*A_array[i]**2*rho_sq))
-        #for i, freq_sig2 in enumerate(frequency_sig):
-        #    freq_sigma2.append(np.diagonal(freq_sig2[:, the_index]))
-        #areas = np.empty(m1.size) # Array to hold the areas.
-        sigma_t = [] # Array to hold the time errors. For use in area calculation.
-        rho_sq_network_array = 0 # Numpy array to hold the network SNR^2 values.
+        sigma_t = []
+        rho_sq_network_array = 0
         for i, rho_sq in enumerate(rho_sq_array):
             rho_sq_network_array += rho_sq
         snr=np.sqrt(rho_sq_network_array)
         for i, rho2 in enumerate(rho_sq_array):
             sigma_t.append(sig_t(np.sqrt(rho2), np.sqrt(frequency_sig[i])))
-        #s = []
-        #for j in range(len(name)):
-        #    s.append(sigma_t[j])
-        M = m(r_dets, sigma_t)
+        M = m(loc, sigma_t)
         r = R_from_theta_phi(theta, varphi)
         areas = area(r, M, .9)
         return snr, areas
@@ -1136,6 +1115,18 @@ class BHB:
             #return rho_sq_array
             
         if network: # Similar routine but for networks.
+            replace_dict = {
+                'hanford-o3': 'hanford',
+                'hanford-o4': 'hanford',
+                'ligo-like': 'hanford',
+                'livingston-o3': 'livingston',
+                'livingston-o4': 'livingston',
+                'et-like': 'et',
+                'ce1': 'et',
+                'ce2': 'et',
+            }
+
+            name = [replace_dict.get(x, x) for x in name]
             if accurate: # This has been made iterative
 #                path_angle_more=os.path.join(my_path, "accessory/angles_more.dat")
 #                random_angles_more=np.loadtxt(path_angle_more)
@@ -1749,7 +1740,7 @@ class DNS(BHB):
         #self.zs=np.linspace(1e-2,10,100)
         #self.Rm=np.zeros(len(self.zs))
         #self.Rm=R0*R(self.zs, 2.7, 5.6, 2.9, tau, self.cosmos)
-    def set_model_theta(self, new_theta=None): # No changes needed.
+    def set_model_theta(self, pop=None, new_theta=None): # No changes needed.
         """
         The function to change theta from fiducial to user-defined.
 

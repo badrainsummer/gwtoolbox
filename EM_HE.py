@@ -4,7 +4,7 @@ from gwtoolbox.HE_models import *
 from gwtoolbox.functions_EMC import mathcalI
 import numpy as np
 import random
-from scipy.signal import gaussian
+from scipy.signal.windows import gaussian
 from scipy.interpolate import interp1d
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -43,70 +43,13 @@ else:
 class sGRB_DNS:
 # short Gamma-ray Bursts, corresponding to DNS mergers, or BH-NS mergers/
     def __init__(self, cosmos, half_open_mean=half_open_mean_, half_open_std=half_open_std_, lg_r_grb_mean=lg_r_grb_mean_, lg_r_grb_std=lg_r_grb_std_, lgEgrb_mean=lgEgrb_mean_, lgEgrb_std=lgEgrb_std_, nup0_mean=nup0_mean_, nup0_std=nup0_std_, jet_Gamma_mean=jet_Gamma_mean_, jet_Gamma_std=jet_Gamma_std_,detID='Fermi_GBM', sub=False):
-        if detID=='Fermi_GBM':
-            self.Erange=Fermi_GBM_Erange
-            self.sens=Fermi_GBM_sens
-            self.flux_unit=Fermi_GBM_flux_unit
-            self.window=Fermi_GBM_window
-            self.bkg=Fermi_GBM_bkg
-            self.FoV=Fermi_GBM_FoV
-            self.correction=Fermi_GBM_corr
-        elif detID=='Swift_BAT':
-            self.Erange=Swift_BAT_Erange
-            self.sens=Swift_BAT_sens
-            self.flux_unit=Swift_BAT_flux_unit
-            self.window=Swift_BAT_window
-            self.bkg=Swift_BAT_bkg
-            self.FoV=Swift_BAT_FoV
-            self.correction=Swift_BAT_corr
-        elif detID=='Konus':
-            self.Erange=Konus_Erange
-            self.sens=Konus_sens
-            self.flux_unit=Konus_flux_unit
-            self.window=Konus_window
-            self.bkg=Konus_bkg
-            self.FoV=Konus_FoV
-            self.correction=Konus_corr
-        elif detID=='insight_HE':
-            self.Erange=insight_HE_Erange
-            self.sens=insight_HE_sens
-            self.flux_unit=insight_HE_flux_unit
-            self.window=insight_HE_window
-            self.bkg=insight_HE_bkg
-            self.FoV=insight_HE_FoV
-            self.correction=insight_HE_corr
-        elif detID=='GECAM_GRM':
-            self.Erange=GECAM_Erange
-            self.sens=GECAM_sens
-            self.flux_unit=GECAM_flux_unit
-            self.window=GECAM_window
-            self.bkg=GECAM_bkg
-            self.FoV=GECAM_FoV
-            self.correction=GECAM_corr
-        elif detID=='SVOM_GRM':
-            self.Erange=SVOM_GRM_Erange
-            self.sens=SVOM_GRM_sens
-            self.flux_unit=SVOM_GRM_flux_unit
-            self.window=SVOM_GRM_window
-            self.bkg=SVOM_GRM_bkg
-            self.FoV=SVOM_GRM_FoV
-            self.correction=SVOM_corr
-        elif detID=='SVOM_ECLAIRs':
-            self.Erange=SVOM_ECLAIRs_Erange
-            self.sens=SVOM_ECLAIRs_sens
-            self.flux_unit=SVOM_ECLAIRs_flux_unit
-            self.window=SVOM_ECLAIRs_window
-            self.bkg=SVOM_ECLAIRs_bkg
-            self.FoV=SVOM_ECLAIRs_FoV
-            self.correction=SVOM_ECLAIR_corr
-        elif detID=='BATSE':
-            self.Erange=BATSE_Erange
-            self.sens=BATSE_sens
-            self.flux_unit=BATSE_flux_unit
-            self.window=BATSE_window
-            self.bkg=BATSE_bkg
-            self.FoV=BATSE_FoV
-            self.correction=BATSE_corr
+        self.Erange=HE_detectors[detID]['Erange']
+        self.sens=HE_detectors[detID]['sens']
+        self.flux_unit=HE_detectors[detID]['flux_unit']
+        self.window=HE_detectors[detID]['window']
+        self.bkg=HE_detectors[detID]['bkg']
+        self.FoV=HE_detectors[detID]['FoV']
+        self.correction=HE_detectors[detID]['corr']
         if sub!=False:
             self.sens=self.sens*sub
         self.Zs=np.linspace(0,30, 100)

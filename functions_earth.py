@@ -12,125 +12,107 @@ from astropy import constants as const
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import EarthLocation
 from astropy.cosmology import Planck18  # or replace with your cosmology model
+from astropy.time import Time
 from scipy.optimize import root_scalar
 #tranform theta, varphi, psi to detector frame
-def transform_angles(theta, varphi, psi, name):
-    if name=='virgo':
-        det_lo=[10.504/180*np.pi, 43.631/180*np.pi, 71/180*np.pi]
-        a=np.array([[np.cos(det_lo[2]), -np.sin(det_lo[2]), 0], [np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
-        b=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), np.sin(det_lo[1])], [0,-np.sin(det_lo[1]),np.cos(det_lo[1])]])
-        c=np.array([[np.cos(det_lo[0]), 0, -np.sin(det_lo[0])], [0, 1, 0], [-np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
-        x_a=np.array([np.sin(theta)*np.cos(varphi), np.sin(theta)*np.sin(varphi), np.cos(theta)]).T
-        x_b=a@b@c@x_a
-        theta_new=np.arccos(x_b[2])
-        if x_b[1]>0 and x_b[0]>0:
-            phi_new=np.arctan(x_b[1]/x_b[0])
-        if x_b[0]==0 and x_b[1]>0:
-            phi_new=np.pi/2
-        if x_b[0]<0 and x_b[1]>0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
-        if x_b[0]==0 and x_b[1]<0:
-            phi_new=3*np.pi/2
-        if x_b[0]<0 and x_b[1]<0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
-        if x_b[0]>0 and x_b[1]<0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+2*np.pi
-        d=np.array([[np.cos(det_lo[2]), np.sin(det_lo[2]), 0], [-np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
-        e=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), -np.sin(det_lo[1])], [0,np.sin(det_lo[1]),np.cos(det_lo[1])]])
-        f=np.array([[np.cos(det_lo[0]), 0, np.sin(det_lo[0])], [0, 1, 0], [np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
-        x_c=np.array([1, 0, 0]).T
-        x_d=f@e@d@x_c
-        n=x_d - np.dot(x_d, x_b)*x_b
-        m=x_c - np.dot(x_c, x_b)*x_b
-        psi_new=abs(psi-np.arccos(np.dot(m,n)/np.linalg.norm(m)/np.linalg.norm(n)))
-        return theta_new, phi_new, psi_new
-    if name=='hanford':
-        det_lo=[46.455/180*np.pi, 240.592/180*np.pi, 126/180*np.pi]
-        a=np.array([[np.cos(det_lo[2]), -np.sin(det_lo[2]), 0], [np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
-        b=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), np.sin(det_lo[1])], [0,-np.sin(det_lo[1]),np.cos(det_lo[1])]])
-        c=np.array([[np.cos(det_lo[0]), 0, -np.sin(det_lo[0])], [0, 1, 0], [-np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
-        x_a=np.array([np.sin(theta)*np.cos(varphi), np.sin(theta)*np.sin(varphi), np.cos(theta)]).T
-        x_b=a@b@c@x_a
-        theta_new=np.arccos(x_b[2])
-        if x_b[1]>0 and x_b[0]>0:
-            phi_new=np.arctan(x_b[1]/x_b[0])
-        if x_b[0]==0 and x_b[1]>0:
-            phi_new=np.pi/2
-        if x_b[0]<0 and x_b[1]>0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
-        if x_b[0]==0 and x_b[1]<0:
-            phi_new=3*np.pi/2
-        if x_b[0]<0 and x_b[1]<0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
-        if x_b[0]>0 and x_b[1]<0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+2*np.pi
-        d=np.array([[np.cos(det_lo[2]), np.sin(det_lo[2]), 0], [-np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
-        e=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), -np.sin(det_lo[1])], [0,np.sin(det_lo[1]),np.cos(det_lo[1])]])
-        f=np.array([[np.cos(det_lo[0]), 0, np.sin(det_lo[0])], [0, 1, 0], [np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
-        x_c=np.array([1, 0, 0]).T
-        x_d=f@e@d@x_c
-        n=x_d - np.dot(x_d, x_b)*x_b
-        m=x_c - np.dot(x_c, x_b)*x_b
-        psi_new=abs(psi-np.arccos(np.dot(m,n)/np.linalg.norm(m)/np.linalg.norm(n)))
-        return theta_new, phi_new, psi_new
-    if name=='livingston':
-        det_lo=[30.563/180*np.pi, 269.226/180*np.pi, 198/180*np.pi]
-        a=np.array([[np.cos(det_lo[2]), -np.sin(det_lo[2]), 0], [np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
-        b=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), np.sin(det_lo[1])], [0,-np.sin(det_lo[1]),np.cos(det_lo[1])]])
-        c=np.array([[np.cos(det_lo[0]), 0, -np.sin(det_lo[0])], [0, 1, 0], [-np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
-        x_a=np.array([np.sin(theta)*np.cos(varphi), np.sin(theta)*np.sin(varphi), np.cos(theta)]).T
-        x_b=a@b@c@x_a
-        theta_new=np.arccos(x_b[2])
-        if x_b[1]>0 and x_b[0]>0:
-            phi_new=np.arctan(x_b[1]/x_b[0])
-        if x_b[0]==0 and x_b[1]>0:
-            phi_new=np.pi/2
-        if x_b[0]<0 and x_b[1]>0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
-        if x_b[0]==0 and x_b[1]<0:
-            phi_new=3*np.pi/2
-        if x_b[0]<0 and x_b[1]<0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
-        if x_b[0]>0 and x_b[1]<0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+2*np.pi
-        d=np.array([[np.cos(det_lo[2]), np.sin(det_lo[2]), 0], [-np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
-        e=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), -np.sin(det_lo[1])], [0,np.sin(det_lo[1]),np.cos(det_lo[1])]])
-        f=np.array([[np.cos(det_lo[0]), 0, np.sin(det_lo[0])], [0, 1, 0], [np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
-        x_c=np.array([1, 0, 0]).T
-        x_d=f@e@d@x_c
-        n=x_d - np.dot(x_d, x_b)*x_b
-        m=x_c - np.dot(x_c, x_b)*x_b
-        psi_new=abs(psi-np.arccos(np.dot(m,n)/np.linalg.norm(m)/np.linalg.norm(n)))
-        return theta_new, phi_new, psi_new
-    if name=='KAGRA':
-        det_lo=[36.41/180*np.pi, 137.31/180*np.pi, 28.3/180*np.pi]
-        a=np.array([[np.cos(det_lo[2]), -np.sin(det_lo[2]), 0], [np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
-        b=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), np.sin(det_lo[1])], [0,-np.sin(det_lo[1]),np.cos(det_lo[1])]])
-        c=np.array([[np.cos(det_lo[0]), 0, -np.sin(det_lo[0])], [0, 1, 0], [-np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
-        x_a=np.array([np.sin(theta)*np.cos(varphi), np.sin(theta)*np.sin(varphi), np.cos(theta)]).T
-        x_b=a@b@c@x_a
-        theta_new=np.arccos(x_b[2])
-        if x_b[1]>0 and x_b[0]>0:
-            phi_new=np.arctan(x_b[1]/x_b[0])
-        if x_b[0]==0 and x_b[1]>0:
-            phi_new=np.pi/2
-        if x_b[0]<0 and x_b[1]>0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
-        if x_b[0]==0 and x_b[1]<0:
-            phi_new=3*np.pi/2
-        if x_b[0]<0 and x_b[1]<0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
-        if x_b[0]>0 and x_b[1]<0:
-            phi_new=np.arctan(x_b[1]/x_b[0])+2*np.pi
-        d=np.array([[np.cos(det_lo[2]), np.sin(det_lo[2]), 0], [-np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
-        e=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), -np.sin(det_lo[1])], [0,np.sin(det_lo[1]),np.cos(det_lo[1])]])
-        f=np.array([[np.cos(det_lo[0]), 0, np.sin(det_lo[0])], [0, 1, 0], [np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
-        x_c=np.array([1, 0, 0]).T
-        x_d=f@e@d@x_c
-        n=x_d - np.dot(x_d, x_b)*x_b
-        m=x_c - np.dot(x_c, x_b)*x_b
-        psi_new=abs(psi-np.arccos(np.dot(m,n)/np.linalg.norm(m)/np.linalg.norm(n)))
-        return theta_new, phi_new, psi_new
+def transform_angles(theta, varphi, psi, time, loc):
+    """
+    Transform source angles (theta,varphi,psi) from celestial frame to detector frame.
+    
+    Parameters
+    ----------
+    theta, varphi, psi : float
+        Source sky location and polarization in celestial frame [radians]
+    time : tuple (year, month, day) OR astropy.time.Time
+        Observation time (UTC). If tuple, converted to astropy Time.
+    loc : np.array([x,y,z])
+        Detector location vector in light-seconds (ECEF frame).
+    
+    Returns
+    -------
+    theta_new, phi_new, psi_new : float
+        Source angles in detector frame [radians]
+    """
+
+    # --- handle time ---
+    if isinstance(time, tuple):
+        year, month, day = time
+        obstime = Time(f"{year}-{month:02d}-{day:02d} 00:00:00", scale="utc")
+    elif isinstance(time, Time):
+        obstime = time
+    else:
+        raise TypeError("time must be tuple (Y,M,D) or astropy.time.Time")
+
+    # --- get GMST ---
+    gmst = obstime.sidereal_time("mean", "greenwich").radian
+
+    # --- detector longitude from loc ---
+    _, theta_loc, phi_loc = cart_to_sph(loc * const.c.value)  # convert back to meters for consistency
+    lon = phi_loc
+    lat = np.pi/2 - theta_loc  # convert colatitude to latitude
+
+    # local sidereal angle
+    local_sidereal = lon + gmst
+    local_sidereal = np.mod(local_sidereal, 2*np.pi)
+
+    # --- rotation matrices (ECEF→celestial) ---
+    # rotate around z by local_sidereal
+    Rz = np.array([[ np.cos(local_sidereal), -np.sin(local_sidereal), 0],
+                   [ np.sin(local_sidereal),  np.cos(local_sidereal), 0],
+                   [ 0,                       0,                      1]])
+
+    # rotate around y by (pi/2 - lat) so z aligns with local zenith
+    Ry = np.array([[ np.sin(lat), 0, -np.cos(lat)],
+                   [ 0,           1,  0],
+                   [ np.cos(lat), 0,  np.sin(lat)]])
+
+    # source vector in celestial frame
+    src = np.array([np.sin(theta)*np.cos(varphi),
+                    np.sin(theta)*np.sin(varphi),
+                    np.cos(theta)])
+
+    # transform
+    det_vec = Rz @ Ry @ src
+
+    # spherical coords in detector frame
+    theta_new = np.arccos(np.clip(det_vec[2], -1, 1))
+    phi_new = np.arctan2(det_vec[1], det_vec[0])
+    if phi_new < 0:
+        phi_new += 2*np.pi
+
+    # polarization rotation (simplified: keep psi unchanged for now)
+    psi_new = psi
+
+    return theta_new, phi_new, psi_new
+# def transform_angles(theta, varphi, psi, mjd, loc):
+#     det_lo=loc
+#     a=np.array([[np.cos(det_lo[2]), -np.sin(det_lo[2]), 0], [np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+#     b=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), np.sin(det_lo[1])], [0,-np.sin(det_lo[1]),np.cos(det_lo[1])]])
+#     c=np.array([[np.cos(det_lo[0]), 0, -np.sin(det_lo[0])], [0, 1, 0], [-np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+#     x_a=np.array([np.sin(theta)*np.cos(varphi), np.sin(theta)*np.sin(varphi), np.cos(theta)]).T
+#     x_b=a@b@c@x_a
+#     theta_new=np.arccos(x_b[2])
+#     if x_b[1]>0 and x_b[0]>0:
+#         phi_new=np.arctan(x_b[1]/x_b[0])
+#     if x_b[0]==0 and x_b[1]>0:
+#         phi_new=np.pi/2
+#     if x_b[0]<0 and x_b[1]>0:
+#         phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+#     if x_b[0]==0 and x_b[1]<0:
+#         phi_new=3*np.pi/2
+#     if x_b[0]<0 and x_b[1]<0:
+#         phi_new=np.arctan(x_b[1]/x_b[0])+np.pi
+#     if x_b[0]>0 and x_b[1]<0:
+#         phi_new=np.arctan(x_b[1]/x_b[0])+2*np.pi
+#     d=np.array([[np.cos(det_lo[2]), np.sin(det_lo[2]), 0], [-np.sin(det_lo[2]), np.cos(det_lo[2]), 0], [0,0,1]])
+#     e=np.array([[1, 0, 0], [0, np.cos(det_lo[1]), -np.sin(det_lo[1])], [0,np.sin(det_lo[1]),np.cos(det_lo[1])]])
+#     f=np.array([[np.cos(det_lo[0]), 0, np.sin(det_lo[0])], [0, 1, 0], [np.sin(det_lo[0]),0,np.cos(det_lo[0])]])
+#     x_c=np.array([1, 0, 0]).T
+#     x_d=f@e@d@x_c
+#     n=x_d - np.dot(x_d, x_b)*x_b
+#     m=x_c - np.dot(x_c, x_b)*x_b
+#     psi_new=abs(psi-np.arccos(np.dot(m,n)/np.linalg.norm(m)/np.linalg.norm(n)))
+#     return theta_new, phi_new, psi_new
 
 def sample1D(pdf, ranges, size):
     """

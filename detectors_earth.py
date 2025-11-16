@@ -63,18 +63,12 @@ class LigoLike:
             data = np.loadtxt(self.ce1_file)
         elif self.det == 'ce2':
             data = np.loadtxt(self.ce2_file)
-        elif self.det == 'ligo-like' and pars != None:
-            import gwtoolbox.simulate_ligo as sim # We import the simulator here because it is faster: loading it takes about one second, and we don't want to slow our code down when it is not necessary.
-            session = sim.Session(pars) # Instantiate a Session, which needs us to supply it with the katCode at this point
-            out_finesse = session.run() # returns the result from PyKat, which has a .x component (frequencies) and a .y component (strain noises).
-            data = np.column_stack([out_finesse.x, np.ravel(out_finesse.y)])
-        elif self.det == 'ligo-like' and pars == None:
-            import gwtoolbox.simulate_ligo as sim # We import the simulator here because it is faster: loading it takes about one second, and we don't want to slow our code down when it is not necessary.
-            session = sim.Session() # Instantiate a Session, use the default code here
-            out_finesse = session.run() # returns the result from PyKat, which has a .x component (frequencies) and a .y component (strain noises).
-            data = np.column_stack([out_finesse.x, np.ravel(out_finesse.y)])
+        elif self.det == 'ligo-like':
+            import gwtoolbox.simulate_ligo as sim
+            session = sim.Session(pars)
+            out_finesse = session.run()
+            data = np.column_stack([np.abs(out_finesse.x[0]), np.abs(np.ravel(out_finesse["NSR_with_RP"]))])
         else: raise ValueError('ligo-like selected but no arm length and laser power provided')
-
         data[:,1] = data[:,1]**2.
         if self.det == 'ligo-like' and pars != None:
             # add seismic noise
@@ -149,16 +143,11 @@ class ETLike:
 
         if self.det == 'et':
             data = np.loadtxt(self.et_file)
-        elif self.det == 'et-like' and pars != None:
-            import gwtoolbox.simulate_ligo as sim # We import the simulator here because it is faster: loading it takes about one second, and we don't want to slow our code down when it is not necessary.
-            session = sim.Session(pars) # Instantiate a Session, which needs us to supply it with the katCode at this point
-            out_finesse = session.run() # returns the result from PyKat, which has a .x component (frequencies) and a .y component (strain noises).
-            data = np.column_stack([out_finesse.x, np.ravel(out_finesse.y)])
-        elif self.det == 'et-like' and pars == None:
-            import gwtoolbox.simulate_ligo as sim # We import the simulator here because it is faster: loading it takes about one second, and we don't want to slow our code down when it is not necessary.
-            session = sim.Session() # Instantiate a Session, use the default code here
-            out_finesse = session.run() # returns the result from PyKat, which has a .x component (frequencies) and a .y component (strain noises).
-            data = np.column_stack([out_finesse.x, np.ravel(out_finesse.y)])
+        elif self.det == 'et-like':
+            import gwtoolbox.simulate_ligo as sim
+            session = sim.Session(pars)
+            out_finesse = session.run()
+            data = np.column_stack([out_finesse.x[0], np.ravel(out_finesse["NSR_with_RP"])])
         else: raise ValueError('katCode is not given!')
 
         noise = [data[:,0],data[:,1]**2]

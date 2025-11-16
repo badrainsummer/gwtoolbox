@@ -45,7 +45,7 @@ RHO_CRIT_EARTH = 8.
 SAMPLE_SIZE = 10
 
 import astropy.cosmology
-cosmology_dict = {'Planck13':astropy.cosmology.Planck13,'Planck15':astropy.cosmology.Planck15,'WMAP5':astropy.cosmology.WMAP5,'WMAP7':astropy.cosmology.WMAP7,'WMAP9':astropy.cosmology.WMAP9}
+cosmology_dict = {'Planck13':astropy.cosmology.Planck13,'Planck15':astropy.cosmology.Planck15,'Planck18':astropy.cosmology.Planck18,'WMAP5':astropy.cosmology.WMAP5,'WMAP7':astropy.cosmology.WMAP7,'WMAP9':astropy.cosmology.WMAP9}
 
 MBHBunits = {'EclipticLatitude':                 'Radian',\
          'EclipticLongitude':                'Radian',\
