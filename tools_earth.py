@@ -828,7 +828,7 @@ class Tools:
     def create_sgrbcatalog(self, HE_detector='Fermi_GBM', GRB_parameter={"L_star": 2e52, "theta_mean": 5*np.pi/180, "theta_std": 2*np.pi/180}, pathname=None):
         """Create an sGRB catalog."""
         if isinstance(HE_detector, str):
-            flim, lam = self._get_HE_detector_parameters[HE_detector]
+            flim, lam = self._get_HE_detector_parameters(HE_detector)
         elif isinstance(HE_detector, dict):
             HE_detector_parameter = self._remove_merge(GRB_parameter, {"flim": 2e-7, "lam": 0.6})
             flim, lam = HE_detector_parameter["flim"], HE_detector_parameter["flim"]

@@ -1,7 +1,9 @@
 FastBinary.cpp
+FastBinary.h
 FastBinary.i
 FastBinary.py
 arrays.c
+arrays.h
 setup.cfg
 setup.py
 FastBinary.egg-info/PKG-INFO

@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: common
+Version: 1.0.0
+Summary: lisasolve common: sundry utilities
+Home-page: http://lisasolve.googlecode.com
+Author: M. Vallisneri
+Author-email: vallis@vallis.org
+Dynamic: author
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: summary

@@ -1,5 +1,7 @@
 IMRPhenomD.c
+IMRPhenomD.h
 IMRPhenomD_internals.c
+IMRPhenomD_internals.h
 LICENSE
 pyFDresponse.py
 pyIMRPhenomD.c

@@ -21,7 +21,7 @@ install_path = get_python_lib(prefix=install_prefix)
 # now run the setup
 
 setup(name = 'common',
-      version = '$Id: m.vallis@gmail.com $',
+      version = '1.0.0',
       description = 'lisasolve common: sundry utilities',
       author = 'M. Vallisneri',
       author_email = 'vallis@vallis.org',

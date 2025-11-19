@@ -22,7 +22,7 @@ else:
 # now run the setup
 
 setup(name = 'lisaxml',
-      version = '$Id: setup.py 899 2009-02-26 17:16:08Z m.vallis@gmail.com $',
+      version = '1.0.0',
       description = 'The lisaXML Python package',
       author = 'M. Vallisneri',
       author_email = 'vallis@vallis.org',

@@ -1,5 +1,5 @@
 all:
-	python3 setup.py build_ext -i
+	python setup.py install
 
 check:
 	pytest test.py -sv

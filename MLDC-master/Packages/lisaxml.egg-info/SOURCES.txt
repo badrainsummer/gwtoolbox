@@ -1,0 +1,10 @@
+setup_lisaxml2.py
+lisaxml.egg-info/PKG-INFO
+lisaxml.egg-info/SOURCES.txt
+lisaxml.egg-info/dependency_links.txt
+lisaxml.egg-info/top_level.txt
+lisaxml2/__init__.py
+lisaxml2/convertunit.py
+lisaxml2/lisaxml2.py
+lisaxml2/xmltraits.py
+lisaxml2/xmlutils.py

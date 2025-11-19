@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 modulename  = 'FastBinary'
-version     = '$Id: $'
+version     = '1.0.0'
 description = 'A MLDC plugin to create Galactic-binary waveforms'
 author      = 'Michele Vallisneri, based on work by Neil Cornish and others'
 email       = 'vallis@vallis.org'

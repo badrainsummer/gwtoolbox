@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: lisaxml
+Version: 1.0.0
+Summary: The lisaXML Python package
+Home-page: http://svn.sourceforge.net/viewvc/lisatools
+Author: M. Vallisneri
+Author-email: vallis@vallis.org
+Dynamic: author
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: summary

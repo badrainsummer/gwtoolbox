@@ -12,22 +12,100 @@ import platform
 import random
 import json
 import os
-#from function_space import listSNR_unit
-#gslcblas = CDLL('/usr/local/Cellar/gsl/2.6/lib/libgslcblas.dylib',mode=RTLD_GLOBAL)
-#gsl = CDLL('libgsl.dylib')
-#gsl= CDLL('/usr/local/Cellar/gsl/2.6/lib/libgsl.dylib')
-if platform.uname().system == 'Darwin':
-    gslcblas = CDLL('/usr/local/Cellar/gsl/2.6/lib/libgslcblas.dylib')
-    gsl = CDLL('/usr/local/Cellar/gsl/2.6/lib/libgsl.dylib')
-else:
-    gslcblas = CDLL('/usr/lib64/libgslcblas.so',mode=RTLD_GLOBAL)
-    gsl = CDLL('/usr/lib64/libgsl.so',mode=RTLD_GLOBAL)
-#gslcblas = CDLL('/usr/local/Cellar/gsl/2.6/lib/libgslcblas.dylib',mode=RTLD_GLOBAL)
-#    gsl = CDLL('/usr/local/Cellar/gsl/2.6/lib/libgsl.dylib',mode=RTLD_GLOBAL)
-#gslcblas=CDLL('/local/home/yishuxu/local/lib/libgslcblas.so',mode=RTLD_GLOBAL)
-#gsl=CDLL('/local/home/yishuxu/local/lib/libgsl.so',mode=RTLD_GLOBAL)
-path=os.path.dirname(os.path.abspath(__file__))#'/home/raojh/gw-universe-grbwebsite/gwtoolbox/'
-#print('sys.path:', sys.path)
+import glob
+
+def _find_libs():
+    """
+    Automatically search for GSL and GSL CBLAS shared libraries.
+    The function selects appropriate search paths based on the OS.
+    """
+    system = platform.system()
+
+    candidates = []
+
+    # ----- macOS (supports Homebrew Intel/M1/M2 and MacPorts) -----
+    if system == "Darwin":
+        search_dirs = [
+            "/usr/local/opt/gsl/lib",
+            "/opt/homebrew/opt/gsl/lib",
+            "/usr/local/lib",
+            "/opt/local/lib",
+        ]
+        patterns = ["libgsl*.dylib", "libgslcblas*.dylib"]
+
+    # ----- Linux (various distributions including /usr/lib, /usr/local/lib, and conda environments) -----
+    else:
+        search_dirs = [
+            "/usr/lib",
+            "/usr/lib64",
+            "/usr/local/lib",
+            "/usr/local/lib64",
+        ]
+
+        # Conda environment
+        conda_prefix = os.getenv("CONDA_PREFIX")
+        if conda_prefix:
+            search_dirs.append(os.path.join(conda_prefix, "lib"))
+
+        patterns = ["libgsl*.so*", "libgslcblas*.so*"]
+
+    # Collect candidate library files
+    libs = []
+    for d in search_dirs:
+        for p in patterns:
+            libs.extend(glob.glob(os.path.join(d, p)))
+
+    # Remove duplicates and sort (prefer unversioned libraries first)
+    libs = sorted(set(libs), key=lambda x: (".so." in x) or (".dylib." in x))
+
+    return libs
+
+
+def load_gsl():
+    """
+    Load GSL and GSL CBLAS libraries.
+    RTLD_GLOBAL is used on Linux to ensure symbols are visible
+    to subsequently loaded C extensions.
+    """
+    libs = _find_libs()
+    if not libs:
+        raise RuntimeError(
+            "GSL libraries not found on this system.\n"
+            "Please install GSL or set DYLD_LIBRARY_PATH / LD_LIBRARY_PATH."
+        )
+
+    loaded = []
+    for lib in libs:
+        try:
+            # macOS does not require RTLD_GLOBAL; Linux does for symbol visibility
+            if platform.system() == "Darwin":
+                ctypes.CDLL(lib)
+            else:
+                ctypes.CDLL(lib, mode=RTLD_GLOBAL)
+
+            loaded.append(lib)
+        except Exception:
+            continue
+
+    if not loaded:
+        raise RuntimeError("GSL libraries were found but none could be loaded.")
+
+    return loaded
+
+
+# ---- Invocation (load automatically at import) ----
+
+loaded_paths = load_gsl()
+# print("Loaded GSL libs:", loaded_paths)
+
+
+# if platform.uname().system == 'Darwin':
+#     gslcblas = CDLL('/usr/local/Cellar/gsl/2.6/lib/libgslcblas.dylib')
+#     gsl = CDLL('/usr/local/Cellar/gsl/2.6/lib/libgsl.dylib')
+# else:
+#     gslcblas = CDLL('/usr/lib64/libgslcblas.so',mode=RTLD_GLOBAL)
+#     gsl = CDLL('/usr/lib64/libgsl.so',mode=RTLD_GLOBAL)
+path=os.path.dirname(os.path.abspath(__file__))
 import AAKwrapper
 
 #def listSNR_unit(setting):
@@ -414,23 +492,23 @@ class GB:
         SNR2=4.*np.trapz(np.abs(Xf)**2/y,frq)*Tobs**2
         return np.sqrt(SNR2)
 
-    def SNR_speed(self,pars, Tobs, dt, det):
+    def SNR_speed(self,pars, Tobs, dt, det, Michelson=False):
         """
             @param: pars list of parameters
             @param: Tobs, in unit of years
             @param: dt, time resolution of waveform in unit of seconds.
             @param: det, detector class
+            @param: Michelson, whether to use Michelson SNR
         """
         Tobs=Tobs*self.year
         if len(pars.shape)==2:
             amp=pars[:,4]
             f=pars[:,0]
             phi=pars[:,2]
-            #print(pars[:,3])
             theta=1.5707963-pars[:,3]
             psi=pars[:,6]
             iota=pars[:,5]
-        else:
+        else: 
             amp=pars[4]
             f=pars[0]
             phi=pars[2]
@@ -443,11 +521,15 @@ class GB:
         Fp2=0.25*(np.cos(2.*psi)**2*Dp2-np.sin(4.*psi)*Dpt+np.sin(2.*psi)**2*Dt2)
         Ft2=0.25*(np.cos(2.*psi)**2*Dt2+np.sin(4.*psi)*Dpt+np.sin(2.*psi)**2*Dp2)
         A2=0.5*amp**2*((1.+np.cos(iota)**2)**2*Fp2+4.*np.cos(iota)**2*Ft2)
-
-        #Sf=noisepsd_X(f, model=model,lisaLT=lisaLT, lisaD=lisaD, lisaP=lisaP)
-        det.change_tobs(Tobs) # Shuxu Changed in Jul26
-        Sf=det.Stdix(f)
-        return np.sqrt(16.*A2/Sf*Tobs)*np.abs(np.sin(f/det.tf))*(f/det.tf)#*np.sinc(f/det.tf)
+        
+        if Michelson == True:
+            Sf=det.Snoise(f)
+        else:
+            Sf=det.Stdix(f)
+        if Michelson == True:
+            return np.sqrt(A2/Sf*Tobs) #Wouter edit
+        else:
+            return np.sqrt(16.*A2/Sf*Tobs)*np.abs(np.sin(f/det.tf))*(f/det.tf)
         
     def tot_num(self, Tobs, det, rhostar):
         """
@@ -506,11 +588,11 @@ class GB:
                 dtype_dict[kys[ind]]='float'
         #df.astype(dtype_dict)
         return [df.astype(dtype_dict),tot]
-    def errors(self, pars, det, Tobs, dt, steps=1e-10):
+    def errors(self, pars, det, Tobs, dt, steps=1e-8):
         """
             @param: Tobs, Observation duration, in unit of year
             @param: det , detector
-            @param: rhostar, SNR_threshold
+            @param: rhostar, SNR_threshold            
         """
         pars=pars[0:8]
         Tobs=Tobs*self.year
@@ -539,7 +621,42 @@ class GB:
         deltaAmp=np.sqrt(np.abs(sigma[4,4]))
         deltaF=1./Tobs
         #deltaF=np.sqrt(np.abs(sigma[0,0]))
-        return [deltaF, deltaAmp, np.abs(deltaOmega)/(4.*np.pi)*41252.96]
+        deltaLat=sigma[2,2]
+        deltaLong=sigma[3,3]
+        return [deltaF, deltaAmp, np.abs(deltaOmega)/(4.*np.pi)*41252.96,
+                deltaLat, deltaLong]  
+    
+    def cov_matrix(self, pars, det, Tobs, dt, steps=1e-8):
+        """
+            @param: pars, parameters of the source
+            @param: Tobs, Observation duration, in unit of year
+            @param: det , detector
+            @param: dt, sampling
+            @param: steps, size of the step to do numerical derivative 
+        """
+        pars=pars[0:8]
+        Tobs=Tobs*self.year
+        keys = ['Frequency','FrequencyDerivative','EclipticLatitude', 'EclipticLongitude', 'Amplitude', 'Inclination', 'Polarization', 'InitialPhase']
+        Xf, Yf, Zf = self.fastB.onefourier(simulator='synthlisa', vector=pars, buffer=None, T=Tobs, dt=dt, algorithm='Michele', oversample=4)
+        Xf=Xf*(det.lisaLT/16.6782)**2 # with a different Larm
+        freq = np.arange(Xf.kmin, Xf.kmin + len(Xf))*Xf.df
+        partials=np.empty(shape=(len(freq),len(keys)),dtype=np.complex128)
+        for i in range(len(keys)):
+            p_left=pars-pars*np.reshape(np.eye(1,len(keys),i), (8,))*steps
+            p_right=pars+pars*np.reshape(np.eye(1,len(keys),i), (8,))*steps
+            Xf_left, Yf_left, Zf_left=self.fastB.onefourier(simulator='synthlisa', vector=p_left, buffer=None, T=Tobs, dt=dt, algorithm='Michele', oversample=4)
+            Xf_right, Yf_right, Zf_right=self.fastB.onefourier(simulator='synthlisa', vector=p_right, buffer=None, T=Tobs, dt=dt, algorithm='Michele', oversample=4)
+            Xf_delta=Xf_right-Xf_left
+            Xf_delta=Xf_delta*(det.lisaLT/16.6782)**2 #with a different Larm
+            freq_temp=np.arange(Xf_delta.kmin, Xf_delta.kmin + len(Xf_delta))*Xf_delta.df
+            #partials[:,i]=Xf_delta/(2.*steps*pars[i])
+            partials[:,i]=np.interp(freq, freq_temp, Xf_delta/(2.*steps*pars[i]))
+        y=det.Stdix(freq)
+        to_intg_1=np.einsum('...i,...j->...ij', np.conj(partials), partials)
+        to_intg_2=np.einsum('i...,i->i...',to_intg_1, 1./y)
+        fisher=4.*np.real(np.trapz(to_intg_2,freq,axis=0))*Tobs**2*16. # yishuxu 12th. Oct
+        sigma=np.linalg.inv(fisher)
+        return sigma
 
     def givelisterrors(self,Tobs, det, rhostar,size):
         data_final, tot=self.givelist(Tobs, det, rhostar, size)
