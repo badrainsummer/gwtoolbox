@@ -457,7 +457,7 @@ def errors(FIM):
     Returns:
       (array of dtype float): errors
     """
-    a = np.linalg.inv(FIM)
+    a = np.linalg.pinv(FIM)
     return a
 
 def FIM_conv_matr(m1, m2, dimension):
@@ -875,7 +875,7 @@ def eigenprojection(x, eigvals, eigvecs):
 
 # Maps vector x onto the eigenbasis.
 def eigenmapping(x, eigvecs):
-    mapping = np.linalg.inv(eigvecs)
+    mapping = np.linalg.pinv(eigvecs)
     return np.matmul(mapping, x)
 
 # Maps x to the geocentric basis.
@@ -1003,7 +1003,7 @@ def confidence_region(r, M, p=0.9, y_num=1000, cart=False):
     eigvecs_nd = np.delete(eigvecs, degen, axis=1) # Only the nondegenerate eigenvectors.
 
     # Mapping to eigenvector basis.
-    mapping = np.linalg.inv(eigvecs) # Mapping matrix.
+    mapping = np.linalg.pinv(eigvecs) # Mapping matrix.
     r_eig = np.matmul(mapping, r) # Mapping.
     
     # Take i=0->x, i=1->y.
@@ -1052,7 +1052,7 @@ def area(r, M, p):
     axes = 1/np.sqrt(eigvals_nondegen) # Converts the eigenvalues to uncertainties.
     
     # Implementing a test to determine whether localisation works out.
-    r_eig = np.matmul(np.linalg.inv(eigvecs), r)
+    r_eig = np.matmul(np.linalg.pinv(eigvecs), r)
     x_test_low = axes[0]<=(1+r_eig[0])/np.sqrt(-2*np.log(1-p))
     x_test_up = axes[0]<=(1-r_eig[0])/np.sqrt(-2*np.log(1-p))
     y_test_low = axes[1]<=(1+r_eig[1])/np.sqrt(-2*np.log(1-p))
