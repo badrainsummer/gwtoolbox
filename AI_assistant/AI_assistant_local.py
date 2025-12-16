@@ -1,3 +1,4 @@
+from http import server
 import gradio as gr
 import json
 import os
@@ -34,8 +35,8 @@ def is_valid_python_path(python_path: str) -> bool:
         return False
 
 # Initialize global variables
-ai_types = ['sort', 'professor', 'LVK', 'LTT', 'PTA', 'code']
-type_token = {'sort': 10, 'professor': 200, 'LVK': 400, 'LTT': 400, 'PTA': 400, 'code': 500}
+ai_types = ['sort', 'professor', 'LVK', 'LTT', 'PTA', 'HE', 'code']
+type_token = {'sort': 10, 'professor': 200, 'LVK': 400, 'LTT': 400, 'PTA': 400, 'HE': 400, 'code': 500}
 ai_dir = {}  # Stores AI models for different types
 
 def test_api_key(provider, model_name, api_key):
@@ -68,14 +69,18 @@ def test_api_key(provider, model_name, api_key):
     except Exception as e:
         return False, f"[Error] Exception during API validation: {e}"
 
-def set_ai(model_mode, local_model_name, use_gpu_flag, remote_model_name, deepseek_model, openai_model, other_model, api_key, python_path):
+def set_ai(model_mode, local_model_name, use_gpu_flag, remote_model_name, deepseek_model, openai_model, other_model, api_key, python_path_1, python_path_2):
     """Initialize AI models based on user configuration"""
     warning = ''
 
     # Handle Python path
-    python_path = sys.executable if python_path == 'python' else python_path
-    if not is_valid_python_path(python_path):
-        return "Invalid python path!", False
+    python_path_1 = sys.executable if python_path_1 == 'python' else python_path_1
+    python_path_2 = sys.executable if python_path_2 == 'python' else python_path_2
+    if not is_valid_python_path(python_path_1):
+        return "Invalid python path!", False, gr.update(visible=True)
+    
+    if not is_valid_python_path(python_path_2):
+        return "Invalid python path!", False, gr.update(visible=True)
     
     # Initialize AI models
     global ai_dir
@@ -102,11 +107,11 @@ def set_ai(model_mode, local_model_name, use_gpu_flag, remote_model_name, deepse
             model = other_model if openai_model == "other model" else openai_model
         
         if not api_key:
-            return "Empty API key!", False
+            return "Empty API key!", False, gr.update(visible=True)
             
         state, info = test_api_key(remote_model_name, model, api_key)
         if not state:
-            return info, False
+            return info, False, gr.update(visible=True)
         else:
             warning += info
             for typ in ai_types:
@@ -116,7 +121,7 @@ def set_ai(model_mode, local_model_name, use_gpu_flag, remote_model_name, deepse
                     system_prompt=load_prompt(typ),
                     api_key=api_key
                 )
-    return warning + "Model setup successful!", True
+    return warning + "Model setup successful!", True, gr.update(visible=False)
 
 def create_new_dialogue(savepath, user_input):
     """Create a new dialogue directory structure"""
@@ -125,18 +130,21 @@ def create_new_dialogue(savepath, user_input):
     global dialogue_path
     dialogue_path = os.path.join(savepath, dialogue_name)
     os.makedirs(dialogue_path, exist_ok=True)
+    os.chmod(dialogue_path, 0o777)
     
     # Create subdirectories
     for sub in ['pyfiles', 'figures', 'dialogues', 'catalogs']:
         os.makedirs(os.path.join(dialogue_path, sub), exist_ok=True)
+        os.chmod(os.path.join(dialogue_path, sub), 0o777)
     
     # Initialize empty JSON files
     for file in ['sort.json', 'message.json', 'code.json']:
         with open(os.path.join(dialogue_path, 'dialogues', file), "w", encoding="utf-8") as f:
             json.dump([], f, indent=4, ensure_ascii=False)
+        os.chmod(os.path.join(dialogue_path, 'dialogues', file), 0o777)
 
 
-def save_ai_code_to_file(ai_response: str, save_path: str):
+def save_ai_code_to_file(ai_response: str, save_path: str, add_prefix: bool = False):
     """Extract and save code from AI response"""
     lines = ai_response.strip().split('\n')
     if lines and lines[0].strip().startswith('```'):
@@ -144,11 +152,18 @@ def save_ai_code_to_file(ai_response: str, save_path: str):
     if lines and lines[-1].strip() == '```':
         lines = lines[:-1]
     code_str = '\n'.join(lines)
+    if add_prefix:
+        prefix = (
+            "import xspec\n"
+            "xspec.Xset.chatter = 0\n"
+            "xspec.Xset.show = 0\n\n"
+        )
+        code_str = prefix + code_str
     with open(save_path, 'w', encoding='utf-8') as f:
         f.write(code_str)
 
 
-def gradio_run(message, history, settings_available, savepath, python_path):
+def gradio_run(message, history, settings_available, savepath, python_path_1, python_path_2):
     """Main chat processing function"""
     if not settings_available:
         yield "Please configure the AI model first"
@@ -177,7 +192,7 @@ def gradio_run(message, history, settings_available, savepath, python_path):
     response_type = None
     for _ in range(5):
         response_type = ai_dir['sort'](sorts, stream=False)
-        if response_type in ['professor', 'LVK', 'LTT', 'PTA']:
+        if response_type in ['professor', 'LVK', 'LTT', 'PTA', 'HE']:
             break
     else:
         yield "Please try rephrasing your question!"
@@ -201,7 +216,7 @@ def gradio_run(message, history, settings_available, savepath, python_path):
         json.dump(dialogue, f, indent=4, ensure_ascii=False)
 
     # Handle code execution for specific response types
-    if response_type in ['LVK', 'LTT', 'PTA']:
+    if response_type in ['LVK', 'LTT', 'PTA', 'HE']:
         full_response += "\nExecuting code..."
         yield full_response
         
@@ -217,12 +232,17 @@ def gradio_run(message, history, settings_available, savepath, python_path):
 
         # Execute code
         py_file = os.path.join(dialogue_path, 'pyfiles', f'{timestamp}.py')
-        save_ai_code_to_file(ai_code, py_file)
-        result = subprocess.run([python_path, py_file], capture_output=True, text=True)
+        if response_type == 'HE':
+            save_ai_code_to_file(ai_code, py_file, add_prefix=True)
+            result = subprocess.run(["conda", "run", "-n", 'hetoolbox', python_path_2, py_file], capture_output=True, text=True)
+        else:
+            save_ai_code_to_file(ai_code, py_file)
+            result = subprocess.run([python_path_1, py_file], capture_output=True, text=True)
         
         # Handle execution results
         if result.returncode:
-            full_response += f"\nExecution failed:\n{repr(result.stderr)}"
+            print(result.stderr)
+            full_response += f"\nExecution failed:\n{result.stderr}"
         else:
             full_response += "\nExecution result:\n" + repr(result.stdout)
         yield full_response
@@ -262,7 +282,10 @@ def update_ui(code_display, catalog_display, image_display):
     new_catalog = catalog_display
     if matched_catalog:
         with open(os.path.join(cat_dir, matched_catalog), "r", encoding="utf-8") as f:
-            new_catalog = pd.DataFrame(json.load(f))
+            try:
+                new_catalog = pd.DataFrame(json.load(f))
+            except Exception as e:
+                new_catalog = None
 
     return (
         gr.Code(language="python", value=new_code) if new_code else gr.Code(language="python", value=code_display),
@@ -358,6 +381,7 @@ def check_save_path(path):
             return False, "Parent directory not writable"
         try:
             os.makedirs(path, exist_ok=True)
+            os.chmod(path, 0o777)
         except:
             return False, "Could not create directory"
     return True, "Path updated successfully"
@@ -480,16 +504,18 @@ def launch():
                 model_set = gr.Button("Configure Model")
             
             api_key = gr.Textbox(label="API Key", visible=True)
-            python_path = gr.Textbox(label="Python Path ('python' uses current interpreter)", value="python")
+            python_path_1 = gr.Textbox(label="GWToolbox Python Path ('python' uses current interpreter)",visible=True)
+            python_path_2 = gr.Textbox(label="HEToolbox Python Path ('python' uses current interpreter)",visible=True)
             model_state = gr.Markdown()
 
         # Save path settings
         with gr.Column(visible=False) as change_savepath:
-            with gr.Row():
+            with gr.Row(visible=True):
                 save_path_input = gr.Textbox(label="Dialogue Save Path", value=os.path.join(current_dir, "record"), scale=3)
                 savepath_state = gr.State(os.path.join(current_dir, "record"))
                 change_savepath_btn = gr.Button("Confirm", scale=1)
             save_info = gr.Markdown()
+            # gr.Markdown("You are not allowed to change save path")
 
         # Dialogue import
         with gr.Column(visible=False) as upload_dialogue:
@@ -504,7 +530,7 @@ def launch():
         chatbot = gr.Chatbot(value=[], type="messages", visible=True)
         chat_interface = gr.ChatInterface(
             fn=gradio_run,
-            additional_inputs=[settings_available, savepath_state, python_path],
+            additional_inputs=[settings_available, savepath_state, python_path_1, python_path_2],
             chatbot=chatbot,
             type="messages"
         )
@@ -560,8 +586,8 @@ def launch():
             set_ai,
             inputs=[model_mode,local_model_name, use_gpu_flag,
                     remote_model_name, deepseek_model, openai_model,
-                    other_model, api_key, python_path],
-            outputs=[model_state, settings_available]
+                    other_model, api_key, python_path_1, python_path_2],
+            outputs=[model_state, settings_available, api_key]
         )
 
         # State update
@@ -621,7 +647,12 @@ def launch():
             preprocess=True
         )
 
-    demo.launch()
+    demo.launch(
+                server_name="127.0.0.1",
+                server_port=7860,
+                root_path="/gradio",
+                # share=True,
+                )
 
 if __name__ == "__main__":
     launch()
