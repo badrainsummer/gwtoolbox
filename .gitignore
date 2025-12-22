@@ -1,0 +1,43 @@
+# 环境文件
+*.env
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VSCode / 编辑器配置
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+
+# 本地调试结果
+tmp/
+test_*/
+output_*/
+
+# 不要上传敏感的配置或私钥
+*.key
+*.pem
+*.crt
+
+# 数据文件夹
+/accessory/
+/backup/
+/catalogues_mHz/
+/data_detectors/
+/data_populations/
+/EMRI_Kludge_Suite-master/
+/EMRI_waveform/
+/MLDC-master/
+/Nelson/
+/NS_MRR/
+/random_number/
+/specs/
