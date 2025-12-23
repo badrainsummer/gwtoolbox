@@ -1,93 +1,145 @@
 # GWToolbox
 
-_A Python-based toolbox for multi-messenger gravitational-wave astrophysics._
+**GWToolbox** is a Python-based toolbox for **multi-messenger gravitational-wave astrophysics**, supporting simulations and analyses for ground-based detectors, space-borne detectors, and pulsar timing arrays (PTAs).
 
-## Getting started
+## Getting Started
 
-Before start to use these package, there are few step you have to do:
+Before using **GWToolbox**, please follow the steps below to set up the environment, download required data, and install dependencies.
 
-### Create a environment
+## 1. Create a Virtual Environment
 
-We recommond you to create a virtual environment to install GWToolbox. If you don't have conda, install it first. Then create a new environment:
+We strongly recommend using a virtual environment. If you do not have **conda** installed, please install it first.
 
-```
+Create and activate a new environment:
+
+```bash
 conda create -n gwtoolbox_enc python=3.9
 conda activate gwtoolbox_enc
 ```
 
-Then install some basic package:
+Then install the basic Python dependencies:
 
+```bash
+pip install numpy scipy astropy requests tqdm h5py matplotlib pandas
 ```
-pip install numpy scipy astropy request tqdm h5py matplotlib pandas
-```
 
-### Download data step
+## 2. Download Data
 
-You can manually download the data [here](https://zenodo.org/records/17962656), unzip the file and copy or the folders in _Supplementary Materials_ into gwtoolbox folder. Or just run:
+You can manually download the required data from Zenodo:
 
-```
+👉 [https://zenodo.org/records/17962656](https://zenodo.org/records/17962656)
+
+After downloading, unzip the file and copy the folders under ***Supplementary Materials*** into the `GWToolbox` directory.
+
+Alternatively, you can download and extract the data automatically by running:
+
+```bash
 python download.py
 ```
 
-### Download and install package
+## 3. Install GWToolbox Dependencies
 
-- _Ground-base_: Just usr conda to install [finesse](https://finesse.ifosim.org/docs/latest/index.html):
+GWToolbox supports **ground-based detectors**, **space-borne detectors**, and **PTA analyses**. Please install the corresponding dependencies as needed.
 
-```
+### 3.1 Ground-Based Detectors
+
+For ground-based simulations, install **FINESSE** using conda:
+
+```bash
 conda install -c conda-forge finesse
 ```
 
-- _Space-borne_: This module depends on the codes inside the Mock LISA data challenge (MLDC). The relevant parts of MLDC is already included in the GWToolbox. Please follow these steps in sequence:
+Documentation:
+[https://finesse.ifosim.org/docs/latest/index.html](https://finesse.ifosim.org/docs/latest/index.html)
 
-```
-cd /MLDC-master/Packages
+### 3.2 Space-Borne Detectors (LISA)
+
+The space-borne module depends on components from the **Mock LISA Data Challenge (MLDC)**. The required parts of MLDC are already included in GWToolbox.
+
+Please install them **in the following order**:
+
+```bash
+cd MLDC-master/Packages
 python setup_lisaxml2.py install
 
-cd /MLDC-master/Packages/common
+cd ../common
 python setup.py install
 
-cd /MLDC-master/Waveforms/MBH_IMR/IMRPhenomD
+cd ../../Waveforms/MBH_IMR/IMRPhenomD
 make
 
-cd /MLDC-master/Waveforms/fastGB
-python setup.py install
-``` 
-
-The simulation on the waveform of EMRIs depends on an other tool [_EMRI_Kludge_Suite_](https://github.com/alvincjk/EMRI\_Kludge\_Suite). In the original _EMRI_Kludge_Suite_, the arm-length of LISA is hard-coded. I revised the source code to enable a different arm-length. The revised _EMRI_Kludge_Suite_ is included in the GWToolbox.
-
-To build the binaries. The _GSL_ and _FFTW_ libraries are required for compilation. After this step, you will need to install the python wrapper. Make sure that in the setup.py, the variables _gsl_ and _gslcblas_ are set correctly to the path of the libraries, and make sure that your environment variable _LD_LIBRARY_PATH_ is set properly so that the required libraries can be found. Then run:
-
-```
-cd /EMRI_Kludge_Suite
-make
+cd ../../fastGB
 python setup.py install
 ```
 
-- _PTA_: You only need to install _hasasia_:
+#### EMRI Waveforms
 
-```
-pip install hasasia
-```
+The simulation of EMRI waveforms relies on the
+**EMRI_Kludge_Suite**:
 
-## AI assistant
+[https://github.com/alvincjk/EMRI_Kludge_Suite](https://github.com/alvincjk/EMRI_Kludge_Suite)
 
-We develop an program that can create code based on _GWToolbox_ and run automatically and return result using large language mode like deepseek or chatgpt. You only have to install:
+In the original implementation, the LISA arm length is hard-coded.
+We provide a **modified version** that allows for arbitrary arm lengths, which is already included in GWToolbox.
 
-```
-pip install gradio==5.38.2 openai
-```
+To compile the EMRI binaries:
+
+* Make sure **GSL** and **FFTW** are installed on your system
+* Check that `gsl` and `gslcblas` paths are correctly specified in `setup.py`
+* Ensure the environment variable `LD_LIBRARY_PATH` includes the required library paths
 
 Then run:
 
+```bash
+cd EMRI_Kludge_Suite
+make
+python setup.py install
 ```
+
+---
+
+### 3.3 Pulsar Timing Array (PTA)
+
+For PTA-related analyses, only **hasasia** is required:
+
+```bash
+pip install hasasia
+```
+
+---
+
+## 4. AI Assistant
+
+GWToolbox includes an **AI assistant** that can automatically generate and execute GWToolbox-based code using large language models (e.g. ChatGPT or DeepSeek).
+
+To enable the AI assistant, install:
+
+```bash
+pip install gradio==5.38.2 openai
+```
+
+Then launch the assistant:
+
+```bash
 cd AI_assistant/
 python AI_assistant_local.py
 ```
 
-Then go to your browser and visit http://127.0.0.1:7860 or http://localhost:7860.
+Open your browser and visit:
 
-Due to the computational requirements for running large language models locally, we currently only provide access to remote large model services. Users must apply for the corresponding model's API key independently.
+* [http://127.0.0.1:7860](http://127.0.0.1:7860)
+* [http://localhost:7860](http://localhost:7860)
 
-## Website
+> **Note**
+> Due to the computational requirements of running large language models locally, the AI assistant currently supports **remote model services only**.
+> Users must obtain and configure the corresponding API keys independently.
 
-If you don't want to install _GWToolbox_ but still want to use it, we provide a [website](http://gw-universe.ihep.ac.cn/GWtoolbox.html)for some simple task.
+## 5. Online Version
+
+If you prefer not to install GWToolbox locally, we provide a **web-based interface** for simple tasks:
+
+🌐 [http://gw-universe.ihep.ac.cn/GWtoolbox.html](http://gw-universe.ihep.ac.cn/GWtoolbox.html)
+
+## Citation
+
+If you use **GWToolbox** in your research, please consider citing the relevant papers or acknowledging this software in your publications.
