@@ -13,8 +13,8 @@ We strongly recommend using a virtual environment. If you do not have **conda** 
 Create and activate a new environment:
 
 ```bash
-conda create -n gwtoolbox_enc python=3.9
-conda activate gwtoolbox_enc
+conda create -n gwtoolbox_env python=3.9
+conda activate gwtoolbox_env
 ```
 
 Then install the basic Python dependencies:
