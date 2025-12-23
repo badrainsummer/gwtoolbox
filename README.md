@@ -90,4 +90,4 @@ Due to the computational requirements for running large language models locally,
 
 ## Website
 
-If you don't want to install _GWToolbox_ but still want to use it, we provide a [website ](http://gw-universe.ihep.ac.cn/GWtoolbox.html)for some simple task.
+If you don't want to install _GWToolbox_ but still want to use it, we provide a [website](http://gw-universe.ihep.ac.cn/GWtoolbox.html)for some simple task.
