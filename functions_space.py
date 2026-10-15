@@ -177,7 +177,7 @@ return a p object, with 20 parameters in it.
     Cat['PolarAngleOfSpin2']=PolarAngleOfSpin2 #[(mass1>masscut)*(mass2>masscut)] #10
     Sphi12s=data_cube[:,7]
     CoalescenceTime=np.random.uniform(low=0,high=duration,size=len(mass1))*31556926. # want seconds
-    Cat['CoalescenceTime']= CoalescenceTime*0.5 #[(mass1>masscut)*(mass2>masscut)] #11
+    Cat['CoalescenceTime']= CoalescenceTime #[(mass1>masscut)*(mass2>masscut)] #11
     EclipticLatitude=0.5*np.pi - data_cube[:, 9]
     Cat['EclipticLatitude']=EclipticLatitude #[(mass1>masscut)*(mass2>masscut)] #12
     EclipticLongitude=data_cube[:,10]
